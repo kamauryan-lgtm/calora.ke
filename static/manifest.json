@@ -1,0 +1,19 @@
+{
+  "name": "CALORA — Accuracy Over Assumptions",
+  "short_name": "CALORA",
+  "description": "Kenya-first nutrition and calorie tracking platform with accuracy, transparency, and uncertainty awareness.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f172a",
+  "theme_color": "#10b981",
+  "categories": ["health", "fitness", "lifestyle", "food"],
+  "icons": [
+    {
+      "src": "/static/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

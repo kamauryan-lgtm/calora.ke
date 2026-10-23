@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offline — CALORA</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-white min-h-screen flex items-center justify-center p-6">
+  <div class="calora-card p-8 max-w-md w-full text-center space-y-6">
+    <div class="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-center mx-auto text-emerald-400">
+      <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 4.243a9 9 0 01-2.829-6.364 9 9 0 012.829-6.364m2.828 2.828a5 5 0 012.829 1.414"></path>
+      </svg>
+    </div>
+
+    <div class="space-y-2">
+      <h1 class="text-xl font-bold">You are currently offline</h1>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        CALORA caches your recent meals and daily targets locally. Any meal drafts or quick additions you made are preserved in local storage and will automatically synchronize once your connection is restored.
+      </p>
+    </div>
+
+    <div class="pt-2">
+      <button onclick="window.location.reload()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 rounded-xl text-sm transition-all shadow-lg shadow-emerald-500/20">
+        Retry Connection
+      </button>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,9 @@
+node_modules
+dist
+.tools
+.git
+__pycache__
+*.pyc
+tests/__pycache__
+app/__pycache__
+.env

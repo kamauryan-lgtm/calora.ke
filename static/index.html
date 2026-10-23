@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>CALORA — Accuracy over assumptions.</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#10b981">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+              900: '#064e3b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-brand-500 selection:text-slate-950">
+
+  <!-- TOP HEADER -->
+  <header class="sticky top-0 z-40 calora-glass border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+      <!-- Logo & Brand Tagline -->
+      <div class="flex items-center space-x-3 cursor-pointer" onclick="switchTab('dashboard')">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-brand-400 flex items-center justify-center shadow-lg shadow-brand-500/20">
+          <i data-lucide="scale" class="w-5 h-5 text-slate-950"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="text-xl font-black tracking-wider text-white">CALORA</span>
+            <span class="text-[10px] tracking-widest uppercase bg-brand-500/20 text-brand-400 px-2 py-0.5 rounded-full font-semibold border border-brand-500/30">Kenya-First</span>
+          </div>
+          <p class="text-[11px] text-slate-400 tracking-tight font-medium">Accuracy over assumptions.</p>
+        </div>
+      </div>
+
+      <!-- Desktop Navigation Bar -->
+      <nav class="hidden lg:flex items-center space-x-1 bg-slate-900/80 p-1.5 rounded-xl border border-slate-800 overflow-x-auto">
+        <button onclick="switchTab('dashboard')" id="nav-btn-dashboard" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-brand-400 bg-slate-800 flex items-center space-x-1.5">
+          <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>
+          <span>Dashboard</span>
+        </button>
+        <button onclick="switchTab('foodlog')" id="nav-btn-foodlog" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 flex items-center space-x-1.5">
+          <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+          <span>Log Food</span>
+        </button>
+        <button onclick="switchTab('recipes')" id="nav-btn-recipes" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 flex items-center space-x-1.5">
+          <i data-lucide="chef-hat" class="w-3.5 h-3.5"></i>
+          <span>Custom Recipes</span>
+        </button>
+        <button onclick="switchTab('wellness')" id="nav-btn-wellness" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 flex items-center space-x-1.5">
+          <i data-lucide="footprints" class="w-3.5 h-3.5"></i>
+          <span>Steps & Sleep</span>
+        </button>
+        <button onclick="switchTab('workouts')" id="nav-btn-workouts" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 flex items-center space-x-1.5">
+          <i data-lucide="dumbbell" class="w-3.5 h-3.5"></i>
+          <span>Workouts</span>
+        </button>
+        <button onclick="switchTab('gyms')" id="nav-btn-gyms" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 flex items-center space-x-1.5">
+          <i data-lucide="building-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+          <span>Gym Partner</span>
+        </button>
+        <button onclick="switchTab('progress')" id="nav-btn-progress" class="nav-tab-btn px-4 py-2 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 flex items-center space-x-1.5">
+          <i data-lucide="trending-down" class="w-3.5 h-3.5"></i>
+          <span>Progress</span>
+        </button>
+        <button onclick="switchTab('assistant')" id="nav-btn-assistant" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 flex items-center space-x-1.5">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+          <span>AI Assistant</span>
+        </button>
+        <button onclick="switchTab('admin')" id="nav-btn-admin" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 flex items-center space-x-1.5">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+          <span>Admin</span>
+        </button>
+      </nav>
+
+      <!-- User Profile, Theme & PWA Controls -->
+      <div class="flex items-center space-x-2">
+        <!-- PWA Install Button -->
+        <button id="pwa-install-btn" onclick="installPWA()" class="hidden sm:flex items-center space-x-1.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-2.5 py-1.5 rounded-xl text-xs transition-all shadow-md shadow-emerald-500/20" title="Install CALORA to Home Screen">
+          <i data-lucide="download" class="w-3.5 h-3.5"></i>
+          <span>Install PWA</span>
+        </button>
+
+        <!-- Dark/Light Mode Switcher -->
+        <button onclick="toggleTheme()" class="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition-all" title="Toggle Dark/Light Mode">
+          <i id="theme-toggle-icon" data-lucide="sun" class="w-4 h-4 text-amber-400"></i>
+        </button>
+
+        <!-- Profile button -->
+        <button onclick="switchTab('profile')" class="flex items-center space-x-2 bg-slate-900 border border-slate-800 hover:border-slate-700 px-3 py-1.5 rounded-xl transition-all">
+          <div class="w-7 h-7 rounded-lg bg-brand-500/20 text-brand-400 flex items-center justify-center font-bold text-xs" id="user-avatar-text">R</div>
+          <span class="text-xs font-semibold text-slate-200 hidden sm:inline" id="user-display-name">Ryan</span>
+          <i data-lucide="settings" class="w-3.5 h-3.5 text-slate-400"></i>
+        </button>
+
+        <!-- Demo Switch / Login Modal Button -->
+        <button onclick="openAuthModal()" class="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 transition-all" title="Switch User / Sign In">
+          <i data-lucide="user-check" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN VIEWPORT CONTAINER -->
+  <main class="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 mb-20 md:mb-8">
+
+    <!-- TAB 1: DAILY DASHBOARD -->
+    <section id="tab-dashboard" class="tab-pane space-y-6">
+      
+      <!-- Date Bar & Daily Greeting -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80">
+        <div>
+          <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center space-x-2">
+            <span>Good day, <span id="dash-greeting-name" class="text-brand-400">Ryan</span></span>
+          </h1>
+          <p class="text-xs sm:text-sm text-slate-400 mt-0.5">Calorie deficit adherence · Uncertainty-aware tracking</p>
+        </div>
+
+        <div class="flex items-center space-x-2 bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 self-start sm:self-auto">
+          <button onclick="changeDay(-1)" class="p-1.5 hover:text-brand-400 transition-colors text-slate-400" title="Previous Day">
+            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+          </button>
+          <input type="date" id="current-date-picker" onchange="onDateChanged()" class="bg-transparent text-xs sm:text-sm text-slate-200 font-semibold focus:outline-none cursor-pointer">
+          <button onclick="changeDay(1)" class="p-1.5 hover:text-brand-400 transition-colors text-slate-400" title="Next Day">
+            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+          </button>
+          <button onclick="resetToToday()" class="text-[11px] font-bold text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 px-2 py-1 rounded-lg border border-brand-500/20 transition-all">
+            Today
+          </button>
+        </div>
+      </div>
+
+      <!-- MAIN CALORIE HERO CARD: Accuracy Over Assumptions -->
+      <div class="calora-card p-6 relative overflow-hidden">
+        <div class="absolute -right-16 -top-16 w-56 h-56 bg-brand-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+          
+          <!-- Left: Big Calorie Meter & Range -->
+          <div class="md:col-span-7 space-y-4">
+            <div class="flex items-center space-x-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Today's Energy Balance</span>
+              <span id="dash-confidence-badge" class="badge-medium px-2.5 py-0.5 rounded-full text-xs font-semibold flex items-center space-x-1">
+                <i data-lucide="shield-alert" class="w-3 h-3 inline"></i>
+                <span>Medium Confidence</span>
+              </span>
+            </div>
+
+            <div class="flex items-baseline space-x-3">
+              <span class="text-4xl sm:text-5xl font-black text-white tracking-tight" id="dash-calories-consumed">1,320</span>
+              <span class="text-xl sm:text-2xl text-slate-400 font-medium">/ <span id="dash-calorie-target">1,950</span> <span class="text-xs uppercase text-slate-500">kcal target</span></span>
+            </div>
+
+            <!-- Transparent Range Indicator -->
+            <div class="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800 space-y-2">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-400 flex items-center space-x-1">
+                  <i data-lucide="info" class="w-3.5 h-3.5 text-brand-400"></i>
+                  <span class="font-medium">Likely Intake Range:</span>
+                </span>
+                <span class="font-bold text-brand-400 font-mono text-sm" id="dash-calorie-range">1,240 – 1,410 kcal</span>
+              </div>
+              <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden flex">
+                <div id="dash-progress-bar" class="bg-gradient-to-r from-brand-500 to-emerald-400 h-full rounded-full transition-all duration-700" style="width: 67%;"></div>
+              </div>
+              <div class="flex items-center justify-between text-[11px] text-slate-400">
+                <span>Remaining: <strong class="text-slate-200" id="dash-calories-remaining">630 kcal</strong></span>
+                <span class="text-slate-400 italic" id="dash-main-uncertainty-txt">Uncertainty: cooking oil + portion estimation</span>
+              </div>
+            </div>
+
+            <!-- Quick Action CTA Buttons -->
+            <div class="flex flex-wrap gap-2 pt-1">
+              <button onclick="switchTab('foodlog')" class="bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm flex items-center space-x-2 transition-all shadow-md shadow-brand-500/20">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span>Log Food</span>
+              </button>
+              <button onclick="openQuickAddModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-4 py-2.5 rounded-xl text-xs sm:text-sm flex items-center space-x-2 border border-slate-700 transition-all">
+                <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i>
+                <span>Quick Add</span>
+              </button>
+              <button onclick="switchTab('assistant')" class="bg-slate-900 hover:bg-slate-850 text-slate-300 font-medium px-3.5 py-2.5 rounded-xl text-xs sm:text-sm flex items-center space-x-1.5 border border-slate-800 transition-all">
+                <i data-lucide="sparkles" class="w-4 h-4 text-brand-400"></i>
+                <span>AI Meal Ideas</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Right: Macro Nutrients Grid -->
+          <div class="md:col-span-5 grid grid-cols-2 gap-3">
+            
+            <!-- Protein -->
+            <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-400 font-medium">Protein</span>
+                <span class="text-brand-400 font-bold text-xs" id="dash-macro-protein-pct">63%</span>
+              </div>
+              <div class="text-lg font-bold text-white">
+                <span id="dash-macro-protein-val">82</span> <span class="text-xs text-slate-400 font-normal">/ <span id="dash-macro-protein-target">130</span>g</span>
+              </div>
+              <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                <div id="dash-macro-protein-bar" class="bg-brand-400 h-full rounded-full transition-all" style="width: 63%;"></div>
+              </div>
+            </div>
+
+            <!-- Carbohydrates -->
+            <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-400 font-medium">Carbs</span>
+                <span class="text-sky-400 font-bold text-xs" id="dash-macro-carbs-pct">66%</span>
+              </div>
+              <div class="text-lg font-bold text-white">
+                <span id="dash-macro-carbs-val">140</span> <span class="text-xs text-slate-400 font-normal">/ <span id="dash-macro-carbs-target">210</span>g</span>
+              </div>
+              <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                <div id="dash-macro-carbs-bar" class="bg-sky-400 h-full rounded-full transition-all" style="width: 66%;"></div>
+              </div>
+            </div>
+
+            <!-- Fats -->
+            <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-400 font-medium">Fat</span>
+                <span class="text-amber-400 font-bold text-xs" id="dash-macro-fat-pct">64%</span>
+              </div>
+              <div class="text-lg font-bold text-white">
+                <span id="dash-macro-fat-val">42</span> <span class="text-xs text-slate-400 font-normal">/ <span id="dash-macro-fat-target">65</span>g</span>
+              </div>
+              <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                <div id="dash-macro-fat-bar" class="bg-amber-400 h-full rounded-full transition-all" style="width: 64%;"></div>
+              </div>
+            </div>
+
+            <!-- Fibre -->
+            <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-400 font-medium">Fibre</span>
+                <span class="text-emerald-400 font-bold text-xs" id="dash-macro-fibre-pct">60%</span>
+              </div>
+              <div class="text-lg font-bold text-white">
+                <span id="dash-macro-fibre-val">18</span> <span class="text-xs text-slate-400 font-normal">/ <span id="dash-macro-fibre-target">30</span>g</span>
+              </div>
+              <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                <div id="dash-macro-fibre-bar" class="bg-emerald-400 h-full rounded-full transition-all" style="width: 60%;"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- MEAL DIARY BREAKDOWN (Breakfast, Lunch, Dinner, Snack) -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-base sm:text-lg font-bold text-white flex items-center space-x-2">
+            <i data-lucide="utensils" class="w-4 h-4 text-brand-400"></i>
+            <span>Logged Meals for Today</span>
+          </h2>
+          <span class="text-xs text-slate-400">Tap "Why this number?" for calculation audits</span>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4" id="meals-container">
+          <!-- Meal sections will be injected dynamically by dashboard.js -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- TAB 2: LOG FOOD (Search, Natural Language, Photo, Barcode) -->
+    <section id="tab-foodlog" class="tab-pane hidden space-y-6">
+      
+      <!-- Sub-tab Selector -->
+      <div class="flex flex-wrap gap-2 bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
+        <button onclick="switchLogMode('search')" id="logmode-btn-search" class="log-subtab-btn flex-1 min-w-[120px] py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all bg-slate-800 text-brand-400 flex items-center justify-center space-x-2">
+          <i data-lucide="search" class="w-4 h-4"></i>
+          <span>Database Search</span>
+        </button>
+        <button onclick="switchLogMode('nlp')" id="logmode-btn-nlp" class="log-subtab-btn flex-1 min-w-[120px] py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-slate-200 flex items-center justify-center space-x-2">
+          <i data-lucide="message-square" class="w-4 h-4"></i>
+          <span>Natural Language</span>
+        </button>
+        <button onclick="switchLogMode('photo')" id="logmode-btn-photo" class="log-subtab-btn flex-1 min-w-[120px] py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-slate-200 flex items-center justify-center space-x-2">
+          <i data-lucide="camera" class="w-4 h-4"></i>
+          <span>Photo Recognition</span>
+        </button>
+        <button onclick="switchLogMode('barcode')" id="logmode-btn-barcode" class="log-subtab-btn flex-1 min-w-[120px] py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-slate-200 flex items-center justify-center space-x-2">
+          <i data-lucide="barcode" class="w-4 h-4"></i>
+          <span>Barcode Scanner</span>
+        </button>
+      </div>
+
+      <!-- LOG MODE 1: DATABASE SEARCH & TRANSPARENT PORTION BUILDER -->
+      <div id="logmode-search" class="space-y-6">
+        
+        <!-- Search bar & filters -->
+        <div class="calora-card p-4 space-y-4">
+          <div class="relative">
+            <i data-lucide="search" class="w-5 h-5 text-slate-400 absolute left-3.5 top-3.5"></i>
+            <input type="text" id="food-search-input" oninput="onSearchInput(this.value)" placeholder="Search Kenyan & international foods (e.g. Ugali, Beef stew, Sukuma, Chapati, Nyama choma)..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-11 pr-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-all">
+          </div>
+
+          <!-- Category pill filters -->
+          <div class="flex items-center space-x-2 overflow-x-auto pb-1" id="food-categories-pills">
+            <button onclick="filterCategory('All')" class="cat-pill px-3 py-1 rounded-full text-xs font-semibold bg-brand-500 text-slate-950 whitespace-nowrap">All Foods</button>
+            <button onclick="filterCategory('Grains & Cereals')" class="cat-pill px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 whitespace-nowrap">Grains & Cereals</button>
+            <button onclick="filterCategory('Kenyan meals')" class="cat-pill px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 whitespace-nowrap">Kenyan Meals</button>
+            <button onclick="filterCategory('Vegetables')" class="cat-pill px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 whitespace-nowrap">Vegetables</button>
+            <button onclick="filterCategory('Meat & Poultry')" class="cat-pill px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 whitespace-nowrap">Meat & Poultry</button>
+            <button onclick="filterCategory('Legumes')" class="cat-pill px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 whitespace-nowrap">Legumes</button>
+            <button onclick="filterCategory('Dairy')" class="cat-pill px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 whitespace-nowrap">Dairy</button>
+          </div>
+        </div>
+
+        <!-- Search results & Selected Food Builder split view -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          <!-- Food List results (5 cols) -->
+          <div class="lg:col-span-5 space-y-2 max-h-[560px] overflow-y-auto pr-1" id="food-search-results">
+            <!-- Rendered by food_log.js -->
+          </div>
+
+          <!-- Portion & Uncertainty Configurator (7 cols) -->
+          <div class="lg:col-span-7" id="food-detail-builder-panel">
+            <div class="calora-card p-6 text-center text-slate-400 space-y-3">
+              <i data-lucide="utensils-crossed" class="w-10 h-10 mx-auto text-slate-600"></i>
+              <h3 class="text-base font-bold text-slate-200">Select a food item</h3>
+              <p class="text-xs text-slate-400 max-w-sm mx-auto">
+                Select any verified Kenyan or international dish from the list to view its authoritative source, adjust portions, and estimate cooking oil uncertainty.
+              </p>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- LOG MODE 2: NATURAL LANGUAGE FOOD LOGGING -->
+      <div id="logmode-nlp" class="hidden space-y-6">
+        <div class="calora-card p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-base sm:text-lg font-bold text-white flex items-center space-x-2">
+                <i data-lucide="sparkles" class="w-5 h-5 text-brand-400"></i>
+                <span>Natural Language Food Logging</span>
+              </h2>
+              <p class="text-xs text-slate-400 mt-0.5">Type what you ate in natural English or Swahili. CALORA will parse portions and ask clarifying questions if ambiguous.</p>
+            </div>
+            <span class="text-xs font-semibold text-brand-400 bg-brand-500/10 px-2.5 py-1 rounded-lg border border-brand-500/20">Never Fakes Precision</span>
+          </div>
+
+          <!-- Prompt Examples -->
+          <div class="flex flex-wrap gap-2 text-xs">
+            <span class="text-slate-400 py-1">Try:</span>
+            <button onclick="setNlpText('I ate two chapatis and a cup of beans')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1 rounded-lg border border-slate-700 transition-all">"I ate two chapatis and a cup of beans"</button>
+            <button onclick="setNlpText('I had ugali, beef stew and sukuma wiki for lunch')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1 rounded-lg border border-slate-700 transition-all">"I had ugali, beef stew and sukuma wiki for lunch"</button>
+            <button onclick="setNlpText('1 cup githeri and half avocado')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1 rounded-lg border border-slate-700 transition-all">"1 cup githeri and half avocado"</button>
+          </div>
+
+          <div class="space-y-3">
+            <textarea id="nlp-input-text" rows="3" placeholder="Describe your meal naturally (e.g. 'I had a medium portion of ugali, wet fry beef stew and sukuma wiki')..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-all"></textarea>
+            
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <label class="text-xs text-slate-400">Log to meal:</label>
+                <select id="nlp-meal-type-select" class="bg-slate-900 text-xs text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none">
+                  <option value="lunch" selected>Lunch</option>
+                  <option value="breakfast">Breakfast</option>
+                  <option value="dinner">Dinner</option>
+                  <option value="snack">Snack</option>
+                </select>
+              </div>
+
+              <button onclick="submitNlpParse()" id="nlp-parse-btn" class="bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-5 py-2 rounded-xl text-xs sm:text-sm flex items-center space-x-2 transition-all">
+                <i data-lucide="wand-2" class="w-4 h-4"></i>
+                <span>Analyze Meal</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- NLP Results & Clarification Drawer -->
+        <div id="nlp-results-container" class="space-y-4">
+          <!-- Injected dynamically by food_log.js -->
+        </div>
+      </div>
+
+      <!-- LOG MODE 3: PHOTO RECOGNITION -->
+      <div id="logmode-photo" class="hidden space-y-6">
+        <div class="calora-card p-6 space-y-5">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-white flex items-center space-x-2">
+              <i data-lucide="camera" class="w-5 h-5 text-brand-400"></i>
+              <span>Photo Food Recognition</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">Capture or upload your meal. CALORA identifies items, flags uncertainties, and asks for cooking details.</p>
+          </div>
+
+          <!-- Camera / Upload Zone -->
+          <div class="border-2 border-dashed border-slate-700 hover:border-brand-500/50 bg-slate-900/50 rounded-2xl p-8 text-center space-y-4 transition-all">
+            <div class="w-16 h-16 rounded-2xl bg-brand-500/10 text-brand-400 flex items-center justify-center mx-auto border border-brand-500/20">
+              <i data-lucide="image-plus" class="w-8 h-8"></i>
+            </div>
+            <div>
+              <p class="text-sm font-bold text-white">Upload meal image or snap with camera</p>
+              <p class="text-xs text-slate-400 mt-1">Supports JPEG, PNG, WebP (simulated visual recognition engine with Kenyan cuisine detection)</p>
+            </div>
+            
+            <div class="flex flex-wrap justify-center gap-3 pt-2">
+              <label class="cursor-pointer bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition-all flex items-center space-x-2">
+                <i data-lucide="upload" class="w-4 h-4"></i>
+                <span>Choose Photo</span>
+                <input type="file" accept="image/*" class="hidden" onchange="onPhotoSelected(event)">
+              </label>
+              <button onclick="triggerSimulatedPhotoScan('ugali')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-4 py-2 rounded-xl text-xs border border-slate-700 transition-all flex items-center space-x-2">
+                <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
+                <span>Test Demo Plate (Ugali + Beef + Sukuma)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Preview & Clarifications Container -->
+          <div id="photo-recognition-results" class="space-y-4">
+            <!-- Injected by food_log.js -->
+          </div>
+        </div>
+      </div>
+
+      <!-- LOG MODE 4: BARCODE SCANNER -->
+      <div id="logmode-barcode" class="hidden space-y-6">
+        <div class="calora-card p-6 space-y-5">
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-white flex items-center space-x-2">
+              <i data-lucide="barcode" class="w-5 h-5 text-brand-400"></i>
+              <span>Packaged Food Barcode Scanner</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">Scan or enter barcode to match against verified manufacturer nutrition panels.</p>
+          </div>
+
+          <!-- Barcode Input & Scanner Simulator -->
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+            <div class="md:col-span-7 space-y-3">
+              <div class="relative">
+                <i data-lucide="scan" class="w-5 h-5 text-slate-400 absolute left-3.5 top-3.5"></i>
+                <input type="text" id="barcode-manual-input" placeholder="Enter barcode number (e.g. 6161100001012, 5010029000140)..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-11 pr-24 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-500">
+                <button onclick="lookupBarcode()" class="absolute right-2 top-2 bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs transition-all">Lookup</button>
+              </div>
+
+              <!-- Quick Demo Barcode Buttons -->
+              <div class="space-y-1.5">
+                <span class="text-xs text-slate-400 font-medium">Quick Test Barcodes:</span>
+                <div class="flex flex-wrap gap-2 text-xs">
+                  <button onclick="setBarcode('6161100001012')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700">Brookside Milk (6161100001012)</button>
+                  <button onclick="setBarcode('5010029000140')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700">Weetabix EA (5010029000140)</button>
+                  <button onclick="setBarcode('6161100002026')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700">Farmers Choice Smokie (6161100002026)</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="md:col-span-5 bg-slate-900 p-4 rounded-xl border border-slate-800 text-center space-y-2">
+              <div class="w-12 h-12 rounded-xl bg-brand-500/10 text-brand-400 flex items-center justify-center mx-auto">
+                <i data-lucide="scan-line" class="w-6 h-6"></i>
+              </div>
+              <h4 class="text-xs font-bold text-slate-200">Camera Barcode Detection</h4>
+              <p class="text-[11px] text-slate-400">Uses browser native BarcodeDetector API on supported mobile browsers.</p>
+              <button onclick="startLiveCameraBarcode()" class="text-xs font-bold text-brand-400 bg-brand-500/10 hover:bg-brand-500/20 px-3 py-1.5 rounded-lg border border-brand-500/20 transition-all">Open Camera</button>
+            </div>
+          </div>
+
+          <!-- Barcode result panel -->
+          <div id="barcode-result-container" class="space-y-4">
+            <!-- Injected by food_log.js -->
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- TAB 3: PROGRESS & TRENDS (Weight, Adaptive Engine, Weekly Analysis) -->
+    <section id="tab-progress" class="tab-pane hidden space-y-6">
+      
+      <!-- Top Overview Stats -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <div class="calora-card p-4 space-y-1">
+          <span class="text-xs text-slate-400 font-medium">Starting Weight</span>
+          <div class="text-xl sm:text-2xl font-black text-white" id="prog-start-weight">82.4 <span class="text-xs text-slate-500">kg</span></div>
+          <span class="text-[11px] text-slate-400">Baseline entry</span>
+        </div>
+        <div class="calora-card p-4 space-y-1">
+          <span class="text-xs text-slate-400 font-medium">Current Weight</span>
+          <div class="text-xl sm:text-2xl font-black text-brand-400" id="prog-current-weight">80.0 <span class="text-xs text-slate-500">kg</span></div>
+          <span class="text-[11px] text-emerald-400 font-semibold" id="prog-net-change">-2.4 kg (-2.9%)</span>
+        </div>
+        <div class="calora-card p-4 space-y-1">
+          <span class="text-xs text-slate-400 font-medium">Goal Weight</span>
+          <div class="text-xl sm:text-2xl font-black text-white" id="prog-goal-weight">72.0 <span class="text-xs text-slate-500">kg</span></div>
+          <span class="text-[11px] text-slate-400">8.0 kg to go</span>
+        </div>
+        <div class="calora-card p-4 space-y-1">
+          <span class="text-xs text-slate-400 font-medium">7-Day Smoothed Avg</span>
+          <div class="text-xl sm:text-2xl font-black text-amber-400" id="prog-seven-day-avg">80.4 <span class="text-xs text-slate-500">kg</span></div>
+          <span class="text-[11px] text-slate-400">Hydration noise filtered</span>
+        </div>
+      </div>
+
+      <!-- Weight Logging Form & Smoothed Chart -->
+      <div class="calora-card p-6 space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+              <i data-lucide="trending-down" class="w-5 h-5 text-brand-400"></i>
+              <span>Weight Trend & Smoothed Moving Average</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">Daily weigh-ins are filtered through a 7-day rolling average to eliminate water & sodium spikes.</p>
+          </div>
+
+          <!-- Log Weight trigger -->
+          <div class="flex items-center space-x-2">
+            <input type="number" step="0.1" id="new-weight-val" placeholder="80.0" class="w-24 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+            <span class="text-xs text-slate-400 font-semibold">kg</span>
+            <button onclick="submitWeightLog()" class="bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition-all flex items-center space-x-1">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>Log Weight</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Chart.js Canvas Container -->
+        <div class="w-full h-72 relative">
+          <canvas id="weightTrendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- ADAPTIVE CALORIE ENGINE CARD (Section 7) -->
+      <div class="calora-card p-6 space-y-4 border-l-4 border-l-brand-500">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 rounded-lg bg-brand-500/20 text-brand-400 flex items-center justify-center">
+              <i data-lucide="cpu" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-white">Adaptive Calorie Engine</h3>
+              <p class="text-xs text-slate-400">Comparing estimated energy expenditure against observed biological rate of change</p>
+            </div>
+          </div>
+          <span class="text-xs font-semibold text-brand-400 bg-brand-500/10 px-2.5 py-1 rounded-lg border border-brand-500/20">Live Statistical Sync</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          <div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 space-y-1">
+            <span class="text-xs text-slate-400 font-medium">Estimated Maintenance (MSJ Equation):</span>
+            <div class="text-2xl font-black text-white" id="adapt-estimated-maint">2,450 <span class="text-xs text-slate-400">kcal/day</span></div>
+            <p class="text-[11px] text-slate-500">Calculated from BMR (1,799 kcal) × Moderately Active (1.55)</p>
+          </div>
+
+          <div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 space-y-1">
+            <span class="text-xs text-slate-400 font-medium">Observed Biological Trend:</span>
+            <div class="text-2xl font-black text-brand-400" id="adapt-observed-maint">2,380 <span class="text-xs text-slate-400">kcal/day</span></div>
+            <p class="text-[11px] text-slate-500" id="adapt-variance-text">Variance: ~70 kcal/day (Closely aligned)</p>
+          </div>
+        </div>
+
+        <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-2">
+          <p class="font-semibold text-slate-200" id="adapt-relationship-text">Your logged calories and weight response are closely aligned.</p>
+          <p class="text-slate-400" id="adapt-advice-text">
+            CALORA accounts for water fluctuations, glycogen depletion, and cooking oil variances. Moving averages prevent false reactions to single-day weigh-ins.
+          </p>
+        </div>
+      </div>
+
+      <!-- WEEKLY ANALYSIS SUMMARY (Section 25) -->
+      <div class="calora-card p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-base font-bold text-white flex items-center space-x-2">
+            <i data-lucide="calendar" class="w-4 h-4 text-brand-400"></i>
+            <span>Weekly Performance & Health Summary</span>
+          </h3>
+          <span class="text-xs text-slate-400" id="weekly-period-label">Oct 13 – Oct 19, 2026</span>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="bg-slate-900 p-3 rounded-xl border border-slate-800">
+            <span class="text-[11px] text-slate-400">Average Daily Intake</span>
+            <div class="text-lg font-bold text-white" id="weekly-avg-cal">1,920 kcal</div>
+            <span class="text-[10px] text-slate-500">Target: 1,950 kcal</span>
+          </div>
+          <div class="bg-slate-900 p-3 rounded-xl border border-slate-800">
+            <span class="text-[11px] text-slate-400">Logged Consistency</span>
+            <div class="text-lg font-bold text-brand-400" id="weekly-logged-days">6 / 7 days</div>
+            <span class="text-[10px] text-slate-500">High adherence</span>
+          </div>
+          <div class="bg-slate-900 p-3 rounded-xl border border-slate-800">
+            <span class="text-[11px] text-slate-400">Avg Protein Intake</span>
+            <div class="text-lg font-bold text-white" id="weekly-avg-protein">128g / day</div>
+            <span class="text-[10px] text-slate-500" id="weekly-protein-hit">Target reached 5/7 days</span>
+          </div>
+          <div class="bg-slate-900 p-3 rounded-xl border border-slate-800">
+            <span class="text-[11px] text-slate-400">Net Weight Trend</span>
+            <div class="text-lg font-bold text-emerald-400" id="weekly-weight-trend">-0.4 kg</div>
+            <span class="text-[10px] text-slate-500">Steady fat loss rate</span>
+          </div>
+        </div>
+
+        <!-- Supportive Feedback Quote -->
+        <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800 text-xs sm:text-sm text-slate-300 italic" id="weekly-feedback-box">
+          "Your weekly average was 30 kcal below target. That's a tiny, healthy difference. Consistency over weeks matters far more than single-day perfection."
+        </div>
+      </div>
+
+    </section>
+
+    <!-- TAB 4: FOODS & RECIPES (Recipe Builder, Saved Meals, Custom Foods) -->
+    <section id="tab-recipes" class="tab-pane hidden space-y-6">
+      
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-xl font-bold text-white">Foods, Recipes & Saved Meals</h2>
+          <p class="text-xs text-slate-400">Create composite dishes, reusable meal templates, and review verified food sources.</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button onclick="openCustomFoodModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 rounded-xl border border-slate-700 transition-all flex items-center space-x-1.5">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span>Custom Food</span>
+          </button>
+          <button onclick="openRecipeBuilderModal()" class="bg-brand-500 hover:bg-brand-600 text-slate-950 text-xs font-bold px-3 py-2 rounded-xl transition-all flex items-center space-x-1.5">
+            <i data-lucide="chef-hat" class="w-3.5 h-3.5"></i>
+            <span>Create Recipe</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Saved Meal Templates (1-Tap Logging) -->
+      <div class="space-y-3">
+        <h3 class="text-sm font-bold text-slate-300 flex items-center space-x-2">
+          <i data-lucide="bookmark" class="w-4 h-4 text-brand-400"></i>
+          <span>Saved Meal Templates (1-Tap Add)</span>
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="saved-meals-container">
+          <!-- Injected by recipes.js -->
+        </div>
+      </div>
+
+      <!-- User Recipes -->
+      <div class="space-y-3 pt-2">
+        <h3 class="text-sm font-bold text-slate-300 flex items-center space-x-2">
+          <i data-lucide="soup" class="w-4 h-4 text-brand-400"></i>
+          <span>My Custom Recipes</span>
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="recipes-list-container">
+          <!-- Injected by recipes.js -->
+        </div>
+      </div>
+
+      <!-- Database Verification & Source Citations -->
+      <div class="calora-card p-6 space-y-4">
+        <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+          <i data-lucide="award" class="w-4 h-4 text-brand-400"></i>
+          <span>Official Food Composition Data Sources</span>
+        </h3>
+        <p class="text-xs text-slate-400">CALORA never populates arbitrary internet values. All core entries are mapped to verified analytical tables:</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-1">
+            <div class="flex items-center justify-between">
+              <strong class="text-slate-200">Kenya Food Composition Tables (KFCT)</strong>
+              <span class="badge-high px-2 py-0.5 rounded text-[10px]">National Standard</span>
+            </div>
+            <p class="text-slate-400">Government of Kenya Ministry of Health & FAO (2018). Analytical nutrient laboratory tables for Kenyan agricultural and prepared foods.</p>
+          </div>
+          <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 space-y-1">
+            <div class="flex items-center justify-between">
+              <strong class="text-slate-200">USDA FoodData Central</strong>
+              <span class="badge-high px-2 py-0.5 rounded text-[10px]">Lab Verified</span>
+            </div>
+            <p class="text-slate-400">U.S. Department of Agriculture Agricultural Research Service. Gold standard macro and micronutrient profiles for whole staple ingredients.</p>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- TAB 5: AI NUTRITION ASSISTANT & MEAL RECOMMENDATIONS -->
+    <section id="tab-assistant" class="tab-pane hidden space-y-6">
+      
+      <!-- Top Assistant Header & Live Context -->
+      <div class="calora-card p-6 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="flex items-center space-x-3">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-brand-600 to-brand-400 flex items-center justify-center shadow-lg shadow-brand-500/20 text-slate-950">
+              <i data-lucide="bot" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-white">CALORA AI Nutrition Assistant</h2>
+              <p class="text-xs text-slate-400">Context-aware · Grounded in verified foods · Never fabricates facts</p>
+            </div>
+          </div>
+
+          <!-- Real-time context capsule -->
+          <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800 flex items-center space-x-4 text-xs">
+            <div>
+              <span class="text-slate-500 block text-[10px]">REMAINING TODAY</span>
+              <strong class="text-brand-400 text-sm font-mono" id="ai-context-remaining-cal">630 kcal</strong>
+            </div>
+            <div class="border-l border-slate-800 pl-4">
+              <span class="text-slate-500 block text-[10px]">PROTEIN NEEDED</span>
+              <strong class="text-white text-sm font-mono" id="ai-context-remaining-protein">48g</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Meal Recommendations Section (Section 28) -->
+        <div class="space-y-3 pt-2">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5 text-brand-400"></i>
+              <span>Smart Meal Recommendations (Matching Remaining Calories)</span>
+            </h3>
+            <button onclick="refreshRecommendations()" class="text-xs text-brand-400 hover:underline">Refresh</button>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="ai-recommendations-drawer">
+            <!-- Injected by assistant.js -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Conversation Box -->
+      <div class="calora-card p-6 space-y-4">
+        <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+          <i data-lucide="messages-square" class="w-4 h-4 text-brand-400"></i>
+          <span>Ask Nutrition Questions</span>
+        </h3>
+
+        <!-- Suggested Prompt Chips -->
+        <div class="flex flex-wrap gap-2 text-xs">
+          <button onclick="sendAssistantChip('What can I eat with my remaining calories?')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 transition-all">"What can I eat with remaining calories?"</button>
+          <button onclick="sendAssistantChip('Give me a high-protein Kenyan dinner.')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 transition-all">"Give me a high-protein Kenyan dinner."</button>
+          <button onclick="sendAssistantChip('I only have eggs, tomatoes and chapati. What can I make?')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 transition-all">"Eggs, tomatoes & chapati idea"</button>
+          <button onclick="sendAssistantChip('Why am I not losing weight this week?')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 transition-all">"Why am I not losing weight?"</button>
+        </div>
+
+        <!-- Chat history messages -->
+        <div id="ai-chat-messages" class="space-y-3 max-h-96 overflow-y-auto pr-1">
+          <!-- Injected by assistant.js -->
+        </div>
+
+        <!-- Chat input bar -->
+        <div class="flex items-center space-x-2 pt-2">
+          <input type="text" id="ai-chat-input" onkeydown="if(event.key==='Enter') sendAssistantMessage()" placeholder="Ask about meals, cooking oil adjustments, deficits, or high-protein Kenyan foods..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-500">
+          <button onclick="sendAssistantMessage()" id="ai-chat-send-btn" class="bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-5 py-3 rounded-xl text-sm transition-all flex items-center space-x-1.5">
+            <i data-lucide="send" class="w-4 h-4"></i>
+            <span>Send</span>
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- TAB 6: PROFILE & TRANSPARENT CALORIE ENGINE (Settings) -->
+    <section id="tab-profile" class="tab-pane hidden space-y-6">
+      
+      <div class="calora-card p-6 space-y-6">
+        <div>
+          <h2 class="text-xl font-bold text-white">Profile & Transparent Deficit Engine</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Every equation, multiplier, and macro partition is calculated transparently without black-box assumptions.</p>
+        </div>
+
+        <form id="profile-form" onsubmit="saveProfileSettings(event)" class="space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            <!-- Name -->
+            <div class="space-y-1">
+              <label class="text-xs font-semibold text-slate-300">Name</label>
+              <input type="text" id="prof-name" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500">
+            </div>
+
+            <!-- Age -->
+            <div class="space-y-1">
+              <label class="text-xs font-semibold text-slate-300">Age (years)</label>
+              <input type="number" id="prof-age" min="14" max="100" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500" onchange="recalculateProfilePreview()">
+            </div>
+
+            <!-- Sex -->
+            <div class="space-y-1">
+              <label class="text-xs font-semibold text-slate-300">Biological Sex (for MSJ Formula)</label>
+              <select id="prof-sex" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500" onchange="recalculateProfilePreview()">
+                <option value="male">Male (+5 constant)</option>
+                <option value="female">Female (-161 constant)</option>
+              </select>
+            </div>
+
+            <!-- Height -->
+            <div class="space-y-1">
+              <label class="text-xs font-semibold text-slate-300">Height (cm)</label>
+              <input type="number" id="prof-height" step="0.1" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500" onchange="recalculateProfilePreview()">
+            </div>
+
+            <!-- Current Weight -->
+            <div class="space-y-1">
+              <label class="text-xs font-semibold text-slate-300">Current Weight (kg)</label>
+              <input type="number" id="prof-weight" step="0.1" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500" onchange="recalculateProfilePreview()">
+            </div>
+
+            <!-- Goal Weight -->
+            <div class="space-y-1">
+              <label class="text-xs font-semibold text-slate-300">Goal Weight (kg)</label>
+              <input type="number" id="prof-goal-weight" step="0.1" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500">
+            </div>
+
+            <!-- Activity Level -->
+            <div class="md:col-span-2 space-y-1">
+              <label class="text-xs font-semibold text-slate-300">Activity Level</label>
+              <select id="prof-activity" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500" onchange="recalculateProfilePreview()">
+                <option value="sedentary">Sedentary (1.20×) — Desk job, little/no intentional exercise</option>
+                <option value="lightly_active">Lightly Active (1.375×) — Walking / Light exercise 1–3 days/wk</option>
+                <option value="moderately_active" selected>Moderately Active (1.55×) — Regular exercise 3–5 days/wk</option>
+                <option value="very_active">Very Active (1.725×) — Heavy training / sports 6–7 days/wk</option>
+                <option value="extremely_active">Extremely Active (1.90×) — Twice daily training / physical labor</option>
+              </select>
+            </div>
+
+            <!-- Deficit Tier -->
+            <div class="space-y-1">
+              <label class="text-xs font-semibold text-slate-300">Deficit Tier</label>
+              <select id="prof-deficit-tier" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-brand-500" onchange="recalculateProfilePreview()">
+                <option value="conservative">Conservative (-300 kcal, ~0.3kg/wk)</option>
+                <option value="moderate" selected>Moderate (-500 kcal, recommended)</option>
+                <option value="aggressive">Aggressive (-750 kcal, ~0.75kg/wk)</option>
+              </select>
+            </div>
+
+          </div>
+
+          <!-- LIVE MATHEMATICAL TRANSPARENCY PREVIEW BOX -->
+          <div class="calora-card p-5 bg-slate-900/90 border-slate-800 space-y-3" id="profile-preview-box">
+            <!-- Injected by app.js -->
+          </div>
+
+          <div class="flex items-center justify-end space-x-3 pt-2">
+            <button type="submit" class="bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-6 py-2.5 rounded-xl text-sm transition-all">
+              Save Profile & Targets
+            </button>
+          </div>
+        </form>
+
+        <!-- HEALTH & SAFETY NOTICE (Section 40) -->
+        <div class="p-4 bg-slate-900/40 rounded-xl border border-slate-800 text-xs text-slate-400 space-y-2">
+          <div class="flex items-center space-x-2 text-slate-300 font-bold">
+            <i data-lucide="shield-alert" class="w-4 h-4 text-brand-400"></i>
+            <span>Health & Safe Deficit Safeguards</span>
+          </div>
+          <p>
+            CALORA is a tracking and educational tool, not a medical device. Minimum calorie safety logic enforces protected floors (1,200 kcal for females, 1,500 kcal for males). Extreme restriction or crash dieting damages metabolic rate and lean mass. Consult a physician or registered dietitian before beginning any aggressive calorie protocol.
+          </p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- TAB 7: ADMIN PANEL (Section 36) -->
+    <section id="tab-admin" class="tab-pane hidden space-y-6">
+      
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+            <i data-lucide="shield-check" class="w-5 h-5 text-brand-400"></i>
+            <span>CALORA Admin Dashboard & Verification Console</span>
+          </h2>
+          <p class="text-xs text-slate-400">Review reported nutrition discrepancies, audit logs, and verified database health.</p>
+        </div>
+        <span class="text-xs font-mono bg-brand-500/10 text-brand-400 px-3 py-1 rounded-lg border border-brand-500/20 font-bold">Admin Privileges Active</span>
+      </div>
+
+      <!-- Database Health Stats -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4" id="admin-stats-container">
+        <!-- Injected by admin.js -->
+      </div>
+
+      <!-- User Discrepancy Error Reports Queue (Section 37) -->
+      <div class="calora-card p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-base font-bold text-white flex items-center space-x-2">
+            <i data-lucide="flag" class="w-4 h-4 text-amber-400"></i>
+            <span>User Reported Discrepancies ("This calorie value looks wrong")</span>
+          </h3>
+          <select id="admin-report-filter" onchange="loadAdminReports()" class="bg-slate-900 text-xs text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none">
+            <option value="All">All Statuses</option>
+            <option value="pending" selected>Pending Investigation</option>
+            <option value="resolved">Resolved</option>
+          </select>
+        </div>
+
+        <div class="space-y-3" id="admin-reports-list">
+          <!-- Injected by admin.js -->
+        </div>
+      </div>
+
+      <!-- Audit Log History -->
+      <div class="calora-card p-6 space-y-4">
+        <h3 class="text-base font-bold text-white flex items-center space-x-2">
+          <i data-lucide="history" class="w-4 h-4 text-brand-400"></i>
+          <span>Administrative Audit Trail</span>
+        </h3>
+        <div class="space-y-2 text-xs font-mono" id="admin-audit-logs">
+          <!-- Injected by admin.js -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- TAB 7: WELLNESS (Steps & Sleep) -->
+    <section id="tab-wellness" class="tab-pane hidden space-y-6">
+      <div class="flex items-center justify-between bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+            <i data-lucide="heart-pulse" class="w-5 h-5 text-emerald-400"></i>
+            <span>Daily Wellness & Recovery</span>
+          </h2>
+          <p class="text-xs text-slate-400">Step tracking, energy expenditure, and midnight-aware sleep duration.</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Daily Step Counter -->
+        <div id="steps-card-container">
+          <!-- Injected by wellness_workouts.js -->
+        </div>
+
+        <!-- Sleep & Recovery Tracker -->
+        <div id="sleep-card-container">
+          <!-- Injected by wellness_workouts.js -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 8: WORKOUTS & EXERCISE LIBRARY -->
+    <section id="tab-workouts" class="tab-pane hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+            <i data-lucide="dumbbell" class="w-5 h-5 text-emerald-400"></i>
+            <span>Train with CALORA — Kenyan Exercise Library</span>
+          </h2>
+          <p class="text-xs text-slate-400">12 muscle groups, Kenyan household equipment adaptations, and free workout plans.</p>
+        </div>
+        <button onclick="openWorkoutLoggerModal()" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs flex items-center space-x-1.5 shadow-md shadow-emerald-500/20">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          <span>Log Workout Session</span>
+        </button>
+      </div>
+
+      <!-- Free Workout Plans Grid -->
+      <div class="space-y-3">
+        <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
+          <i data-lucide="calendar" class="w-4 h-4 text-emerald-400"></i>
+          <span>Free Structured Workout Routines</span>
+        </h3>
+        <div id="workout-plans-container" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <!-- Injected by wellness_workouts.js -->
+        </div>
+      </div>
+
+      <!-- Exercise Library Browser with Filters -->
+      <div class="space-y-3 pt-2">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900 p-4 rounded-xl border border-slate-800">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="library" class="w-4 h-4 text-emerald-400"></i>
+            <h3 class="text-sm font-bold text-white">Exercise Movement Library (12 Muscle Groups)</h3>
+          </div>
+
+          <div class="flex flex-wrap gap-2 text-xs">
+            <!-- Muscle Filter -->
+            <select id="exercise-muscle-filter" onchange="filterExercises()" class="bg-slate-950 border border-slate-700 text-white rounded-lg px-2.5 py-1.5 focus:outline-none">
+              <option value="all">All Muscle Groups</option>
+              <option value="Chest">Chest</option>
+              <option value="Back">Back</option>
+              <option value="Quads">Quads</option>
+              <option value="Hamstrings">Hamstrings</option>
+              <option value="Glutes">Glutes</option>
+              <option value="Calves">Calves</option>
+              <option value="Shoulders">Shoulders</option>
+              <option value="Biceps">Biceps</option>
+              <option value="Triceps">Triceps</option>
+              <option value="Core">Core / Abs</option>
+              <option value="Forearms">Forearms</option>
+              <option value="Full Body">Full Body / Cardio</option>
+            </select>
+
+            <!-- Equipment Filter -->
+            <select id="exercise-equip-filter" onchange="filterExercises()" class="bg-slate-950 border border-slate-700 text-white rounded-lg px-2.5 py-1.5 focus:outline-none">
+              <option value="all">All Equipment</option>
+              <option value="Bodyweight">Bodyweight Only</option>
+              <option value="Household">Household / Jerrycan</option>
+              <option value="Dumbbells">Dumbbells</option>
+              <option value="Barbell">Barbell</option>
+              <option value="Machine">Gym Machine</option>
+            </select>
+
+            <!-- Search input -->
+            <input type="text" id="exercise-search-input" oninput="filterExercises()" placeholder="Search movements..." class="bg-slate-950 border border-slate-700 text-white rounded-lg px-2.5 py-1.5 focus:outline-none w-36">
+          </div>
+        </div>
+
+        <div id="exercises-library-container" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <!-- Injected by wellness_workouts.js -->
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 9: GYM PARTNER PORTAL & WORKSPACES -->
+    <section id="tab-gyms" class="tab-pane hidden space-y-6">
+      <div id="gym-workspace-selector-container">
+        <!-- Injected by gym_partner.js -->
+      </div>
+
+      <div id="gym-partner-main-container">
+        <!-- Injected by gym_partner.js -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MOBILE BOTTOM NAVIGATION (Section 32) -->
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800 mobile-nav-bar">
+    <div class="grid grid-cols-5 h-16">
+      <button onclick="switchTab('dashboard')" id="mob-nav-dashboard" class="mobile-tab-btn flex flex-col items-center justify-center text-brand-400">
+        <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium mt-1">Dashboard</span>
+      </button>
+      <button onclick="switchTab('foodlog')" id="mob-nav-foodlog" class="mobile-tab-btn flex flex-col items-center justify-center text-slate-400">
+        <i data-lucide="plus-circle" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium mt-1">Log Food</span>
+      </button>
+      <button onclick="switchTab('progress')" id="mob-nav-progress" class="mobile-tab-btn flex flex-col items-center justify-center text-slate-400">
+        <i data-lucide="trending-down" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium mt-1">Progress</span>
+      </button>
+      <button onclick="switchTab('recipes')" id="mob-nav-recipes" class="mobile-tab-btn flex flex-col items-center justify-center text-slate-400">
+        <i data-lucide="book-open" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium mt-1">Foods</span>
+      </button>
+      <button onclick="switchTab('assistant')" id="mob-nav-assistant" class="mobile-tab-btn flex flex-col items-center justify-center text-slate-400">
+        <i data-lucide="sparkles" class="w-5 h-5"></i>
+        <span class="text-[10px] font-medium mt-1">AI Assistant</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ============================================================ -->
+  <!-- MODALS (Why this number, Quick Add, Report Issue, Auth, etc) -->
+  <!-- ============================================================ -->
+
+  <!-- 1. "WHY THIS NUMBER?" TRANSPARENT CALCULATION MODAL (Section 26) -->
+  <div id="modal-why-this-number" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden modal-overlay">
+    <div class="calora-card p-6 max-w-lg w-full bg-slate-900 border-slate-700 space-y-4 modal-content shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="help-circle" class="w-5 h-5 text-brand-400"></i>
+          <h3 class="text-base font-bold text-white">Why This Number?</h3>
+        </div>
+        <button onclick="closeModal('modal-why-this-number')" class="p-1 text-slate-400 hover:text-white rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div id="why-number-modal-body" class="space-y-4">
+        <!-- Rendered dynamically by dashboard.js -->
+      </div>
+
+      <div class="pt-2 flex justify-end">
+        <button onclick="closeModal('modal-why-this-number')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-4 py-2 rounded-xl text-xs">
+          Close Explanation
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. QUICK ADD MODAL (Section 22) -->
+  <div id="modal-quick-add" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden modal-overlay">
+    <div class="calora-card p-6 max-w-md w-full bg-slate-900 border-slate-700 space-y-4 modal-content">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="zap" class="w-5 h-5 text-amber-400"></i>
+          <h3 class="text-base font-bold text-white">Quick Calorie Add</h3>
+        </div>
+        <button onclick="closeModal('modal-quick-add')" class="p-1 text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="submitQuickAdd(event)" class="space-y-4">
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-slate-300">Description (Optional)</label>
+          <input type="text" id="quick-add-name" placeholder="Snack / Coffee / Quick meal" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="text-xs font-semibold text-slate-300">Meal Type</label>
+            <select id="quick-add-meal-type" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
+              <option value="lunch" selected>Lunch</option>
+              <option value="breakfast">Breakfast</option>
+              <option value="dinner">Dinner</option>
+              <option value="snack">Snack</option>
+            </select>
+          </div>
+          <div class="space-y-1">
+            <label class="text-xs font-semibold text-slate-300">Calories (kcal) *</label>
+            <input type="number" id="quick-add-calories" required min="1" max="5000" placeholder="450" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white font-bold text-brand-400 focus:outline-none focus:border-brand-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div class="space-y-1">
+            <label class="text-[11px] text-slate-400">Protein (g)</label>
+            <input type="number" step="0.1" id="quick-add-p" placeholder="0" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+          </div>
+          <div class="space-y-1">
+            <label class="text-[11px] text-slate-400">Carbs (g)</label>
+            <input type="number" step="0.1" id="quick-add-c" placeholder="0" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+          </div>
+          <div class="space-y-1">
+            <label class="text-[11px] text-slate-400">Fat (g)</label>
+            <input type="number" step="0.1" id="quick-add-f" placeholder="0" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+          </div>
+        </div>
+
+        <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-300">
+          <strong>Notice:</strong> Quick-added entries are marked as <em>User-entered</em> rather than database-verified.
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-2">
+          <button type="button" onclick="closeModal('modal-quick-add')" class="px-4 py-2 text-xs text-slate-400 hover:text-white">Cancel</button>
+          <button type="submit" class="bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition-all">Add to Diary</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 3. REPORT FOOD DISCREPANCY MODAL (Section 37) -->
+  <div id="modal-report-food" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden modal-overlay">
+    <div class="calora-card p-6 max-w-md w-full bg-slate-900 border-slate-700 space-y-4 modal-content">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-400"></i>
+          <h3 class="text-base font-bold text-white">Report Discrepancy</h3>
+        </div>
+        <button onclick="closeModal('modal-report-food')" class="p-1 text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="submitFoodReportForm(event)" class="space-y-3">
+        <input type="hidden" id="report-food-id">
+        <input type="hidden" id="report-food-name">
+
+        <div>
+          <span class="text-xs text-slate-400">Reporting item:</span>
+          <p class="text-sm font-bold text-white" id="report-display-food-name">Kenyan Food Item</p>
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-slate-300">What seems incorrect?</label>
+          <select id="report-issue-type" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+            <option value="wrong_portion">Wrong portion size or weight conversion</option>
+            <option value="wrong_nutrition">Nutrition values differ from official packaging</option>
+            <option value="wrong_prep">Preparation method calories incorrect</option>
+            <option value="wrong_food">Wrong food identity or translation</option>
+            <option value="duplicate">Duplicate database entry</option>
+            <option value="other">Other issue</option>
+          </select>
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-slate-300">Details / Source citation if available</label>
+          <textarea id="report-user-notes" rows="3" required placeholder="Please describe the discrepancy so CALORA nutritional administrators can review it..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-brand-500"></textarea>
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-2">
+          <button type="button" onclick="closeModal('modal-report-food')" class="px-4 py-2 text-xs text-slate-400 hover:text-white">Cancel</button>
+          <button type="submit" class="bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs">Submit to Admin Queue</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 4. AUTH MODAL (Switch user / Sign in / Demo Switch) -->
+  <div id="modal-auth" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md hidden modal-overlay">
+    <div class="calora-card p-6 max-w-md w-full bg-slate-900 border-slate-700 space-y-5 modal-content">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2">
+          <div class="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center text-slate-950 font-black">C</div>
+          <h3 class="text-base font-bold text-white">CALORA Access</h3>
+        </div>
+        <button onclick="closeModal('modal-auth')" class="p-1 text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Quick 1-Click Demo Profiles -->
+      <div class="space-y-2">
+        <span class="text-xs font-semibold text-slate-400">1-Click Instant Demo Login:</span>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="instantDemoLogin('user')" class="p-2.5 bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-xl text-left space-y-0.5 transition-all">
+            <span class="text-xs font-bold text-brand-400 block">Ryan (Client)</span>
+            <span class="text-[10px] text-slate-400 block">20yo, 80kg, Lose weight</span>
+          </button>
+          <button onclick="instantDemoLogin('admin')" class="p-2.5 bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-xl text-left space-y-0.5 transition-all">
+            <span class="text-xs font-bold text-amber-400 block">Admin Console</span>
+            <span class="text-[10px] text-slate-400 block">Database & Discrepancies</span>
+          </button>
+          <button onclick="instantDemoLogin('gym_owner')" class="p-2.5 bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-xl text-left space-y-0.5 transition-all">
+            <span class="text-xs font-bold text-emerald-400 block">Kimani (Gym Owner)</span>
+            <span class="text-[10px] text-slate-400 block">Nairobi Hub Manager</span>
+          </button>
+          <button onclick="instantDemoLogin('coach')" class="p-2.5 bg-slate-800 hover:bg-slate-750 border border-slate-700 rounded-xl text-left space-y-0.5 transition-all">
+            <span class="text-xs font-bold text-sky-400 block">Coach Brian (Coach)</span>
+            <span class="text-[10px] text-slate-400 block">Client Nutrition Audits</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="relative flex py-1 items-center">
+        <div class="flex-grow border-t border-slate-800"></div>
+        <span class="flex-shrink mx-4 text-slate-500 text-xs font-semibold">Or Sign In with Email</span>
+        <div class="flex-grow border-t border-slate-800"></div>
+      </div>
+
+      <form onsubmit="handleAuthSubmit(event)" class="space-y-3">
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-slate-300">Email Address</label>
+          <input type="email" id="auth-email" required placeholder="ryan@calora.app" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+        </div>
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-slate-300">Password</label>
+          <input type="password" id="auth-password" required placeholder="••••••••" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+        </div>
+        <button type="submit" class="w-full bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold py-2.5 rounded-xl text-sm transition-all">
+          Sign In
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT BUNDLE -->
+  <script src="/static/js/app.js"></script>
+  <script src="/static/js/dashboard.js"></script>
+  <script src="/static/js/food_log.js"></script>
+  <script src="/static/js/recipes.js"></script>
+  <script src="/static/js/progress.js"></script>
+  <script src="/static/js/assistant.js"></script>
+  <script src="/static/js/wellness_workouts.js"></script>
+  <script src="/static/js/gym_partner.js"></script>
+  <script src="/static/js/admin.js"></script>
+
+  <script>
+    // Initialize icons on DOM ready
+    document.addEventListener("DOMContentLoaded", () => {
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
