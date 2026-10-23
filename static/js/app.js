@@ -12,6 +12,9 @@ const AppState = {
   currentLogMode: "search"
 };
 
+// Configurable API base URL (empty string for same-origin / Netlify redirect proxy)
+const API_BASE = window.CALORA_API_BASE || localStorage.getItem("calora_api_base") || "";
+
 // API Helper with automatic JWT header
 async function apiCall(endpoint, method = "GET", body = null) {
   const headers = { "Content-Type": "application/json" };
@@ -24,8 +27,10 @@ async function apiCall(endpoint, method = "GET", body = null) {
     options.body = JSON.stringify(body);
   }
 
+  const url = endpoint.startsWith("http") ? endpoint : `${API_BASE}${endpoint}`;
+
   try {
-    const res = await fetch(endpoint, options);
+    const res = await fetch(url, options);
     if (res.status === 401) {
       if (!AppState.token) {
         await instantDemoLogin("user", false);
@@ -159,6 +164,11 @@ function installPWA() {
 
 // Tab Switching
 function switchTab(tabId) {
+  if (tabId === "admin" && AppState.user && AppState.user.role !== "admin") {
+    showToast("Access Restricted: Super-Admin console is reserved for administrators.", "error");
+    tabId = "dashboard";
+  }
+
   AppState.currentTab = tabId;
 
   // Toggle tab contents
@@ -168,25 +178,26 @@ function switchTab(tabId) {
 
   // Update desktop navigation buttons
   document.querySelectorAll(".nav-tab-btn").forEach(btn => {
-    btn.className = "nav-tab-btn px-3 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all text-slate-400 hover:text-slate-200 flex items-center space-x-1.5";
+    btn.className = "nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 flex items-center space-x-1.5";
   });
   const activeDesktopBtn = document.getElementById(`nav-btn-${tabId}`);
   if (activeDesktopBtn) {
-    activeDesktopBtn.className = "nav-tab-btn px-3 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all text-emerald-400 bg-slate-800 flex items-center space-x-1.5";
+    activeDesktopBtn.className = "nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-brand-400 bg-slate-800 flex items-center space-x-1.5";
   }
 
   // Update mobile bottom nav buttons
   document.querySelectorAll(".mobile-tab-btn").forEach(btn => {
-    btn.className = "mobile-tab-btn flex flex-col items-center justify-center text-slate-400";
+    btn.className = "mobile-tab-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-200";
   });
   const activeMobBtn = document.getElementById(`mob-nav-${tabId}`);
   if (activeMobBtn) {
-    activeMobBtn.className = "mobile-tab-btn flex flex-col items-center justify-center text-emerald-400";
+    activeMobBtn.className = "mobile-tab-btn flex flex-col items-center justify-center text-brand-400 font-bold";
   }
 
   // Tab-specific load triggers
   if (tabId === "dashboard") loadDashboardData();
   else if (tabId === "foodlog") initFoodLogView();
+  else if (tabId === "history") loadHistoryModule();
   else if (tabId === "progress") loadProgressData();
   else if (tabId === "recipes") loadRecipesData();
   else if (tabId === "assistant") loadAssistantContext();
@@ -295,10 +306,17 @@ function updateUserDisplay() {
     if (avatarEl) avatarEl.textContent = AppState.user.name.charAt(0).toUpperCase();
     if (greetingEl) greetingEl.textContent = AppState.user.name;
 
-    // Show/hide admin tab button
+    // Show/hide admin tab button (ONLY admin can see)
+    const isAdmin = AppState.user.role === "admin";
     const adminBtn = document.getElementById("nav-btn-admin");
+    const adminMobBtn = document.getElementById("mob-nav-admin");
     if (adminBtn) {
-      if (AppState.user.role === "admin") adminBtn.classList.remove("hidden");
+      if (isAdmin) adminBtn.classList.remove("hidden");
+      else adminBtn.classList.add("hidden");
+    }
+    if (adminMobBtn) {
+      if (isAdmin) adminMobBtn.classList.remove("hidden");
+      else adminMobBtn.classList.add("hidden");
     }
   }
 }

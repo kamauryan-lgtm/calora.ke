@@ -36,7 +36,8 @@ from app.models import (
     CopyMealRequest, LogStepRequest, LogSleepRequest, LogWorkoutRequest, GenerateWorkoutRequest,
     GymRegisterRequest, GymBrandingUpdateRequest, GymPackageCreateRequest, GymPackageOrderRequest,
     GymSubscribeRequest, AdminUpdatePlanRequest, GymInviteRequest, MemberConsentUpdateRequest,
-    InitiatePaymentRequest, PaymentCallbackRequest, SendTestEmailRequest
+    InitiatePaymentRequest, PaymentCallbackRequest, SendTestEmailRequest,
+    AdminUpdateUserRoleRequest, AdminCreateFoodRequest, AdminUpdateFoodRequest, CopyMealToTodayRequest
 )
 
 # Initialize database tables and default seed data on startup
@@ -1072,7 +1073,8 @@ def get_weekly_analysis(user: Dict[str, Any] = Depends(get_current_user)):
 
 @app.post("/api/assistant/chat")
 def assistant_chat(req: AssistantChatRequest, user: Dict[str, Any] = Depends(get_current_user)):
-    return handle_assistant_query(req.query, user["id"], req.date)
+    target_date = req.date or req.date_str or date.today().isoformat()
+    return handle_assistant_query(req.query, user["id"], target_date)
 
 
 @app.get("/api/assistant/recommendations")
@@ -2407,7 +2409,527 @@ def send_weekly_reports_to_members(gym_id: str, user: Dict[str, Any] = Depends(g
 
 
 # ==========================================
-# 21. SPA STATIC FILE ROUTING
+# 21. SUPER-ADMIN CONSOLE MANAGEMENT API
+# ==========================================
+
+@app.get("/api/admin/users")
+def get_admin_users_list(search: Optional[str] = Query(None), role: Optional[str] = Query(None), admin: Dict[str, Any] = Depends(get_current_admin_user)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    query = """
+    SELECT u.id, u.email, u.name, u.role, u.created_at,
+           up.age, up.sex, up.current_weight_kg, up.goal_weight_kg, up.target_calories, up.primary_goal, up.deficit_tier
+    FROM users u
+    LEFT JOIN user_profiles up ON u.id = up.user_id
+    WHERE 1=1
+    """
+    params = []
+    if search:
+        s = f"%{search}%"
+        query += " AND (u.name LIKE ? OR u.email LIKE ?)"
+        params.extend([s, s])
+    if role and role != "all":
+        query += " AND u.role = ?"
+        params.append(role)
+
+    query += " ORDER BY u.created_at DESC"
+    cursor.execute(query, params)
+    users = [dict(r) for r in cursor.fetchall()]
+
+    for u in users:
+        cursor.execute("SELECT COUNT(*) FROM meals WHERE user_id = ?", (u["id"],))
+        u["total_meals_logged"] = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM user_workout_logs WHERE user_id = ?", (u["id"],))
+        u["total_workouts_logged"] = cursor.fetchone()[0]
+
+    conn.close()
+    return users
+
+
+@app.put("/api/admin/users/{user_id}/role")
+def update_user_role(user_id: str, req: AdminUpdateUserRoleRequest, admin: Dict[str, Any] = Depends(get_current_admin_user)):
+    allowed_roles = ["client", "user", "coach", "gym_owner", "admin"]
+    if req.role not in allowed_roles:
+        raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of {allowed_roles}")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    now_str = datetime.now().isoformat()
+
+    cursor.execute("SELECT name, role FROM users WHERE id = ?", (user_id,))
+    target = cursor.fetchone()
+    if not target:
+        conn.close()
+        raise HTTPException(status_code=404, detail="User not found")
+
+    old_role = target["role"]
+    cursor.execute("UPDATE users SET role = ?, updated_at = ? WHERE id = ?", (req.role, now_str, user_id))
+
+    # Audit log
+    cursor.execute("""
+    INSERT INTO audit_logs (id, admin_user_id, action, target_entity, target_id, details, created_at)
+    VALUES (?, ?, 'USER_ROLE_CHANGED', 'users', ?, ?, ?)
+    """, (f"audit_{secrets.token_hex(4)}", admin["id"], user_id, f"Changed role of {target['name']} from {old_role} to {req.role}", now_str))
+
+    conn.commit()
+    conn.close()
+    return {"status": "success", "user_id": user_id, "new_role": req.role}
+
+
+@app.get("/api/admin/foods")
+def list_admin_foods(search: Optional[str] = Query(None), category: Optional[str] = Query(None), is_verified: Optional[int] = Query(None), admin: Dict[str, Any] = Depends(get_current_admin_user)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    query = "SELECT * FROM food_items WHERE 1=1"
+    params = []
+    if search:
+        s = f"%{search}%"
+        query += " AND (name LIKE ? OR common_names LIKE ? OR source LIKE ?)"
+        params.extend([s, s, s])
+    if category and category != "all":
+        query += " AND category = ?"
+        params.append(category)
+    if is_verified is not None:
+        query += " AND is_verified = ?"
+        params.append(is_verified)
+
+    query += " ORDER BY is_verified DESC, name ASC"
+    cursor.execute(query, params)
+    foods = [dict(r) for r in cursor.fetchall()]
+
+    for f in foods:
+        cursor.execute("SELECT * FROM food_portions WHERE food_id = ? ORDER BY gram_weight ASC", (f["id"],))
+        f["portions"] = [dict(p) for p in cursor.fetchall()]
+
+    conn.close()
+    return foods
+
+
+@app.post("/api/admin/foods")
+def create_admin_food_item(req: AdminCreateFoodRequest, admin: Dict[str, Any] = Depends(get_current_admin_user)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    now_str = datetime.now().isoformat()
+    food_id = f"food_{secrets.token_hex(5)}"
+
+    cursor.execute("""
+    INSERT INTO food_items (
+        id, name, common_names, category, cuisine, country,
+        calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g,
+        fibre_per_100g, sugar_per_100g, sodium_mg_per_100g, default_prep_method,
+        source, source_date, data_quality, confidence_level, data_origin,
+        notes, is_verified, created_by, created_at
+    ) VALUES (?, ?, ?, ?, 'Kenyan', 'Kenya', ?, ?, ?, ?, ?, 0.0, 0.0, ?, ?, ?, 'High', 'HIGH', 'admin_verified', '', ?, ?, ?)
+    """, (
+        food_id, req.name, req.name, req.category,
+        req.calories_per_100g, req.protein_per_100g, req.carbs_per_100g, req.fat_per_100g, req.fibre_per_100g,
+        req.prep_method or "Boiled / Stewed", req.source or "Kenya Food Composition Tables, 2018",
+        now_str[:10], req.is_verified or 1, admin["id"], now_str
+    ))
+
+    # Add default portions if provided or create standard 100g portion
+    portions = req.portions or [
+        {"name": "100 grams", "gram_weight": 100.0, "is_default": 1},
+        {"name": "Medium portion (150g)", "gram_weight": 150.0, "is_default": 0}
+    ]
+    for p in portions:
+        cursor.execute("""
+        INSERT INTO food_portions (food_id, name, gram_weight, description, is_default)
+        VALUES (?, ?, ?, ?, ?)
+        """, (food_id, p["name"], p["gram_weight"], p.get("description", ""), 1 if p.get("is_default") else 0))
+
+    cursor.execute("""
+    INSERT INTO audit_logs (id, admin_user_id, action, target_entity, target_id, details, created_at)
+    VALUES (?, ?, 'FOOD_ITEM_CREATED', 'food_items', ?, ?, ?)
+    """, (f"audit_{secrets.token_hex(4)}", admin["id"], food_id, f"Created food item '{req.name}' ({req.calories_per_100g} kcal/100g)", now_str))
+
+    conn.commit()
+    conn.close()
+    return {"status": "success", "id": food_id, "food_id": food_id, "name": req.name}
+
+@app.put("/api/admin/foods/{food_id}")
+def update_admin_food_item(food_id: str, req: AdminUpdateFoodRequest, admin: Dict[str, Any] = Depends(get_current_admin_user)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM food_items WHERE id = ?", (food_id,))
+    target = cursor.fetchone()
+    if not target:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Food item not found")
+
+    now_str = datetime.now().isoformat()
+    fields = []
+    values = []
+
+    if req.name is not None:
+        fields.append("name = ?")
+        values.append(req.name)
+    if req.category is not None:
+        fields.append("category = ?")
+        values.append(req.category)
+    if req.calories_per_100g is not None:
+        fields.append("calories_per_100g = ?")
+        values.append(req.calories_per_100g)
+    if req.protein_per_100g is not None:
+        fields.append("protein_per_100g = ?")
+        values.append(req.protein_per_100g)
+    if req.carbs_per_100g is not None:
+        fields.append("carbs_per_100g = ?")
+        values.append(req.carbs_per_100g)
+    if req.fat_per_100g is not None:
+        fields.append("fat_per_100g = ?")
+        values.append(req.fat_per_100g)
+    if req.fibre_per_100g is not None:
+        fields.append("fibre_per_100g = ?")
+        values.append(req.fibre_per_100g)
+    if req.is_verified is not None:
+        fields.append("is_verified = ?")
+        values.append(req.is_verified)
+
+    if fields:
+        values.append(food_id)
+        cursor.execute(f"UPDATE food_items SET {', '.join(fields)} WHERE id = ?", values)
+        cursor.execute("""
+        INSERT INTO audit_logs (id, admin_user_id, action, target_entity, target_id, details, created_at)
+        VALUES (?, ?, 'FOOD_ITEM_UPDATED', 'food_items', ?, ?, ?)
+        """, (f"audit_{secrets.token_hex(4)}", admin["id"], food_id, f"Updated nutrients for '{target['name']}'", now_str))
+
+    conn.commit()
+    conn.close()
+    return {"status": "success", "id": food_id, "food_id": food_id, "calories_per_100g": req.calories_per_100g}
+
+
+@app.delete("/api/admin/foods/{food_id}")
+def delete_admin_food_item(food_id: str, admin: Dict[str, Any] = Depends(get_current_admin_user)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM food_items WHERE id = ?", (food_id,))
+    target = cursor.fetchone()
+    if not target:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Food item not found")
+
+    food_name = target["name"]
+    cursor.execute("DELETE FROM food_portions WHERE food_id = ?", (food_id,))
+    cursor.execute("DELETE FROM food_items WHERE id = ?", (food_id,))
+
+    now_str = datetime.now().isoformat()
+    cursor.execute("""
+    INSERT INTO audit_logs (id, admin_user_id, action, target_entity, target_id, details, created_at)
+    VALUES (?, ?, 'FOOD_ITEM_DELETED', 'food_items', ?, ?, ?)
+    """, (f"audit_{secrets.token_hex(4)}", admin["id"], food_id, f"Deleted food item '{food_name}'", now_str))
+
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": f"Deleted food item {food_name}"}
+
+
+@app.get("/api/admin/gyms")
+def list_admin_gyms(admin: Dict[str, Any] = Depends(get_current_admin_user)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT g.*, u.name as owner_name, u.email as owner_email,
+           sp.name as plan_name, sp.price_kes as plan_price_kes, gs.status as subscription_status,
+           gb.primary_color, gb.logo_url
+    FROM gyms g
+    LEFT JOIN users u ON g.owner_id = u.id
+    LEFT JOIN gym_subscriptions gs ON g.id = gs.gym_id
+    LEFT JOIN subscription_plans sp ON gs.plan_id = sp.id
+    LEFT JOIN gym_branding gb ON g.id = gb.gym_id
+    ORDER BY g.created_at DESC
+    """)
+    gyms = [dict(r) for r in cursor.fetchall()]
+
+    for gym in gyms:
+        cursor.execute("SELECT COUNT(*) FROM gym_members WHERE gym_id = ? AND status = 'active'", (gym["id"],))
+        gym["active_members"] = cursor.fetchone()[0]
+
+        cursor.execute("SELECT SUM(amount_kes) FROM gym_orders WHERE gym_id = ? AND status = 'completed'", (gym["id"],))
+        gym["gross_package_sales"] = cursor.fetchone()[0] or 0
+
+        cursor.execute("SELECT COUNT(*) FROM gym_packages WHERE gym_id = ?", (gym["id"],))
+        gym["packages_count"] = cursor.fetchone()[0]
+
+    conn.close()
+    return gyms
+
+
+@app.get("/api/admin/audit-logs")
+def get_audit_logs(limit: int = Query(50), admin: Dict[str, Any] = Depends(get_current_admin_user)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT ?", (limit,))
+    logs = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return logs
+
+
+# ==========================================
+# 22. CLIENT UNIFIED ACTIVITY & FOOD HISTORY
+# ==========================================
+
+@app.get("/api/meals/history")
+def get_client_meals_history(days: int = Query(14), user: Dict[str, Any] = Depends(get_current_user)):
+    """
+    Returns daily aggregated food diary history for the user,
+    including total consumed calories, target, macro breakdown, and meal items.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    today = date.today()
+    start_date = (today - timedelta(days=days)).isoformat()
+
+    cursor.execute("""
+    SELECT m.date, m.id as meal_id, m.meal_type,
+           mi.id as item_id, mi.food_name, mi.portion_name, mi.gram_weight,
+           mi.cooking_oil_type, mi.prep_method, mi.logged_calories,
+           mi.protein_g, mi.carbs_g, mi.fat_g, mi.fibre_g,
+           mi.confidence_level as confidence, mi.main_uncertainties as main_uncertainty
+    FROM meals m
+    JOIN meal_items mi ON m.id = mi.meal_id
+    WHERE m.user_id = ? AND m.date >= ?
+    ORDER BY m.date DESC, m.created_at DESC
+    """, (user["id"], start_date))
+    rows = cursor.fetchall()
+
+    cursor.execute("SELECT target_calories, protein_target_g, carbs_target_g, fat_target_g, fibre_target_g FROM user_profiles WHERE user_id = ?", (user["id"],))
+    prof_row = cursor.fetchone()
+    target_cals = prof_row["target_calories"] if prof_row else 2000
+    target_p = prof_row["protein_target_g"] if prof_row else 140
+
+    conn.close()
+
+    # Group by date
+    history_by_date = {}
+    for r in rows:
+        d = r["date"]
+        if d not in history_by_date:
+            history_by_date[d] = {
+                "date": d,
+                "target_calories": target_cals,
+                "target_protein_g": target_p,
+                "total_calories": 0,
+                "total_protein_g": 0.0,
+                "total_carbs_g": 0.0,
+                "total_fat_g": 0.0,
+                "total_fibre_g": 0.0,
+                "items_count": 0,
+                "meals": {"breakfast": [], "lunch": [], "dinner": [], "snack": []}
+            }
+
+        day = history_by_date[d]
+        cals = r["logged_calories"]
+        p = r["protein_g"]
+        c = r["carbs_g"]
+        f = r["fat_g"]
+        fib = r["fibre_g"]
+
+        day["total_calories"] += cals
+        day["total_protein_g"] += p
+        day["total_carbs_g"] += c
+        day["total_fat_g"] += f
+        day["total_fibre_g"] += fib
+        day["items_count"] += 1
+
+        m_type = r["meal_type"] if r["meal_type"] in day["meals"] else "lunch"
+        day["meals"][m_type].append({
+            "item_id": r["item_id"],
+            "food_name": r["food_name"],
+            "portion_name": r["portion_name"],
+            "gram_weight": r["gram_weight"],
+            "calories": cals,
+            "protein_g": round(p, 1),
+            "carbs_g": round(c, 1),
+            "fat_g": round(f, 1),
+            "fibre_g": round(fib, 1),
+            "cooking_oil": r["cooking_oil_type"],
+            "confidence": r["confidence"],
+            "main_uncertainty": r["main_uncertainty"]
+        })
+
+    # Finalize rounds and deficit
+    result = []
+    for d, data in sorted(history_by_date.items(), reverse=True):
+        data["total_protein_g"] = round(data["total_protein_g"], 1)
+        data["total_carbs_g"] = round(data["total_carbs_g"], 1)
+        data["total_fat_g"] = round(data["total_fat_g"], 1)
+        data["total_fibre_g"] = round(data["total_fibre_g"], 1)
+        data["deficit_kcal"] = data["target_calories"] - data["total_calories"]
+        data["is_deficit"] = data["deficit_kcal"] >= 0
+        result.append(data)
+
+    return {"days": len(result), "history": result}
+
+
+@app.get("/api/client/unified-history")
+def get_client_unified_activity_history(limit: int = Query(50), user: Dict[str, Any] = Depends(get_current_user)):
+    """
+    Returns a unified chronological activity timeline of everything the client has done:
+    Meals logged, Workouts completed, Steps achieved, Sleep tracked, and Weight weigh-ins.
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    timeline = []
+
+    # 1. Meals
+    cursor.execute("""
+    SELECT m.date, m.created_at, m.meal_type, mi.food_name, mi.portion_name, mi.logged_calories
+    FROM meals m
+    JOIN meal_items mi ON m.id = mi.meal_id
+    WHERE m.user_id = ?
+    ORDER BY m.created_at DESC LIMIT 30
+    """, (user["id"],))
+    for r in cursor.fetchall():
+        timeline.append({
+            "type": "meal",
+            "category": "Diet & Nutrition",
+            "date": r["date"],
+            "created_at": r["created_at"],
+            "title": f"Logged {r['meal_type'].title()}: {r['food_name']}",
+            "summary": f"{r['portion_name']} (~{r['logged_calories']} kcal)",
+            "calories": r["logged_calories"],
+            "badge": "food",
+            "icon": "utensils"
+        })
+
+    # 2. Workouts
+    cursor.execute("""
+    SELECT date, routine_name, duration_minutes, total_volume_kg, created_at
+    FROM user_workout_logs
+    WHERE user_id = ?
+    ORDER BY created_at DESC LIMIT 20
+    """, (user["id"],))
+    for r in cursor.fetchall():
+        timeline.append({
+            "type": "workout",
+            "category": "Fitness Training",
+            "date": r["date"],
+            "created_at": r["created_at"],
+            "title": f"Workout: {r['routine_name']}",
+            "summary": f"{r['duration_minutes']} minutes active (Volume: {r['total_volume_kg']:,.0f} kg)",
+            "volume_kg": r["total_volume_kg"],
+            "badge": "workout",
+            "icon": "dumbbell"
+        })
+
+    # 3. Steps
+    cursor.execute("""
+    SELECT date, steps_count, distance_km, calories_burned, created_at
+    FROM daily_step_logs
+    WHERE user_id = ?
+    ORDER BY date DESC LIMIT 14
+    """, (user["id"],))
+    for r in cursor.fetchall():
+        timeline.append({
+            "type": "steps",
+            "category": "Daily Activity",
+            "date": r["date"],
+            "created_at": r["created_at"] or f"{r['date']}T20:00:00",
+            "title": f"Daily Step Goal: {r['steps_count']:,} steps",
+            "summary": f"{r['distance_km']} km covered ({r['calories_burned']} kcal burned)",
+            "steps": r["steps_count"],
+            "badge": "wellness",
+            "icon": "footprints"
+        })
+
+    # 4. Sleep
+    cursor.execute("""
+    SELECT date, bedtime, wake_time, duration_minutes, quality_rating, created_at
+    FROM sleep_logs
+    WHERE user_id = ?
+    ORDER BY date DESC LIMIT 14
+    """, (user["id"],))
+    for r in cursor.fetchall():
+        h = r["duration_minutes"] // 60
+        m = r["duration_minutes"] % 60
+        timeline.append({
+            "type": "sleep",
+            "category": "Rest & Recovery",
+            "date": r["date"],
+            "created_at": r["created_at"] or f"{r['date']}T07:00:00",
+            "title": f"Sleep Session: {h}h {m}m",
+            "summary": f"Bedtime {r['bedtime']} to {r['wake_time']} (Quality rating: {r['quality_rating']}/5)",
+            "duration_minutes": r["duration_minutes"],
+            "badge": "wellness",
+            "icon": "moon"
+        })
+
+    # 5. Weight Logs
+    cursor.execute("""
+    SELECT date, weight_kg, notes, created_at
+    FROM weight_logs
+    WHERE user_id = ?
+    ORDER BY date DESC LIMIT 15
+    """, (user["id"],))
+    for r in cursor.fetchall():
+        timeline.append({
+            "type": "weight",
+            "category": "Body Progress",
+            "date": r["date"],
+            "created_at": r["created_at"] or f"{r['date']}T08:00:00",
+            "title": f"Weigh-In: {r['weight_kg']} kg",
+            "summary": f"Morning scale reading ({r['notes'] or 'Standard weigh-in'})",
+            "weight_kg": r["weight_kg"],
+            "badge": "progress",
+            "icon": "scale"
+        })
+
+    conn.close()
+
+    # Sort descending by date/created_at
+    timeline.sort(key=lambda x: x.get("created_at") or x["date"], reverse=True)
+    return {"total_events": len(timeline), "timeline": timeline[:limit]}
+
+
+@app.post("/api/meals/copy-to-today")
+def copy_meal_to_today(req: CopyMealToTodayRequest, user: Dict[str, Any] = Depends(get_current_user)):
+    """Copy meals from a past date directly into today's diary."""
+    today_str = date.today().isoformat()
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    query = """
+    SELECT m.meal_type, mi.food_id, mi.food_name, mi.portion_name, mi.gram_weight, mi.cooking_oil_type
+    FROM meals m
+    JOIN meal_items mi ON m.id = mi.meal_id
+    WHERE m.user_id = ? AND m.date = ?
+    """
+    params = [user["id"], req.source_date]
+    if req.meal_type:
+        query += " AND m.meal_type = ?"
+        params.append(req.meal_type)
+
+    cursor.execute(query, params)
+    items = cursor.fetchall()
+    conn.close()
+
+    if not items:
+        raise HTTPException(status_code=404, detail="No meal items found for source date")
+
+    copied_count = 0
+    for itm in items:
+        log_req = LogItemRequest(
+            date=today_str,
+            meal_type=itm["meal_type"],
+            food_id=itm["food_id"],
+            food_name=itm["food_name"],
+            portion_name=itm["portion_name"],
+            gram_weight=itm["gram_weight"],
+            cooking_oil_type=itm["cooking_oil_type"] or "none"
+        )
+        log_meal_item(log_req, user)
+        copied_count += 1
+
+    return {"status": "success", "copied_count": copied_count, "target_date": today_str}
+
+
+# ==========================================
+# 23. SPA STATIC FILE ROUTING
 # ==========================================
 
 # Mount static files

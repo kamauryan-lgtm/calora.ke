@@ -56,10 +56,53 @@ async function loadDashboardData() {
     // Render Meal Categories
     renderMealSections(data.meals, data.meal_summaries);
 
+    // Render Today's Wellness Hub
+    await loadDashboardWellness();
+
     lucide.createIcons();
   } catch (err) {
     console.error("Dashboard error:", err);
     showToast("Failed to load daily diary: " + err.message, "error");
+  }
+}
+
+async function loadDashboardWellness() {
+  const stepsEl = document.getElementById("dash-steps-val");
+  const stepsGoalEl = document.getElementById("dash-steps-goal");
+  const stepsBar = document.getElementById("dash-steps-bar");
+  const sleepEl = document.getElementById("dash-sleep-val");
+  const sleepRatingEl = document.getElementById("dash-sleep-rating");
+  const workoutsEl = document.getElementById("dash-workouts-val");
+
+  try {
+    const [steps, sleep, workouts] = await Promise.all([
+      apiCall(`/api/steps/today?date_str=${AppState.currentDate}`).catch(() => null),
+      apiCall(`/api/sleep/today?date_str=${AppState.currentDate}`).catch(() => null),
+      apiCall("/api/workouts/history").catch(() => [])
+    ]);
+
+    if (steps && stepsEl) {
+      stepsEl.textContent = steps.steps_count.toLocaleString();
+      if (stepsGoalEl) stepsGoalEl.textContent = (steps.goal_steps || 10000).toLocaleString();
+      if (stepsBar) {
+        const pct = Math.min(100, Math.round((steps.steps_count / (steps.goal_steps || 10000)) * 100));
+        stepsBar.style.width = `${pct}%`;
+      }
+    }
+
+    if (sleep && sleepEl) {
+      const h = Math.floor((sleep.duration_minutes || 480) / 60);
+      const m = (sleep.duration_minutes || 480) % 60;
+      sleepEl.textContent = `${h}h ${m}m`;
+      if (sleepRatingEl) sleepRatingEl.textContent = `${sleep.quality_rating || 4}/5 ⭐`;
+    }
+
+    if (workouts && workoutsEl) {
+      const todaysWorkouts = (workouts || []).filter(w => w.date === AppState.currentDate);
+      workoutsEl.textContent = `${todaysWorkouts.length} completed`;
+    }
+  } catch (e) {
+    console.error("Dashboard wellness load error:", e);
   }
 }
 

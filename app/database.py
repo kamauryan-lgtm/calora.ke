@@ -14,11 +14,32 @@ import secrets
 from datetime import datetime, date, timedelta
 from typing import Dict, Any, List, Optional, Tuple
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "calora.db")
+def get_db_path() -> str:
+    env_path = os.environ.get("CALORA_DB_PATH")
+    if env_path:
+        return env_path
+
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    local_db = os.path.join(base_dir, "calora.db")
+
+    # If running in serverless (Netlify Functions / AWS Lambda) where bundle directory is read-only
+    if os.environ.get("AWS_LAMBDA_FUNCTION_NAME") or os.environ.get("NETLIFY") or not os.access(base_dir, os.W_OK):
+        tmp_db = "/tmp/calora.db"
+        if not os.path.exists(tmp_db) and os.path.exists(local_db):
+            import shutil
+            try:
+                shutil.copy2(local_db, tmp_db)
+            except Exception:
+                pass
+        return tmp_db if os.path.exists(tmp_db) else local_db
+
+    return local_db
+
+DB_PATH = get_db_path()
 
 
 def get_db_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(get_db_path())
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn

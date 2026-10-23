@@ -94,7 +94,8 @@ class PhotoDetectRequest(BaseModel):
 
 class AssistantChatRequest(BaseModel):
     query: str
-    date: str
+    date: Optional[str] = None
+    date_str: Optional[str] = None
 
 
 class FoodReportRequest(BaseModel):
@@ -276,4 +277,40 @@ class PaymentCallbackRequest(BaseModel):
 
 class SendTestEmailRequest(BaseModel):
     recipient_email: Optional[str] = None
+
+
+class AdminUpdateUserRoleRequest(BaseModel):
+    role: str  # client, coach, gym_owner, admin
+
+
+class AdminCreateFoodRequest(BaseModel):
+    name: str
+    category: str
+    source: Optional[str] = "Kenya Food Composition Tables (KFCT), 2018"
+    calories_per_100g: float
+    protein_per_100g: float
+    carbs_per_100g: float
+    fat_per_100g: float
+    fibre_per_100g: float
+    prep_method: Optional[str] = "boiled"
+    uncertainty_factor: Optional[float] = 0.05
+    is_verified: Optional[int] = 1
+    portions: Optional[List[Dict[str, Any]]] = None
+
+
+class AdminUpdateFoodRequest(BaseModel):
+    name: Optional[str] = None
+    category: Optional[str] = None
+    calories_per_100g: Optional[float] = None
+    protein_per_100g: Optional[float] = None
+    carbs_per_100g: Optional[float] = None
+    fat_per_100g: Optional[float] = None
+    fibre_per_100g: Optional[float] = None
+    is_verified: Optional[int] = None
+
+
+class CopyMealToTodayRequest(BaseModel):
+    source_date: str
+    meal_type: Optional[str] = None  # None for all meals, or specific meal_type
+
 

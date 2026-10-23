@@ -1,7 +1,23 @@
 [build]
-  command = "npm run build"
+  command = "python build_netlify.py"
   publish = "dist"
 
+[functions]
+  directory = "netlify/functions"
+
+# Proxy /api requests to Netlify Python serverless function
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/api/:splat"
+  status = 200
+
+# Seamless handling for static path assets
+[[redirects]]
+  from = "/static/*"
+  to = "/:splat"
+  status = 200
+
+# SPA fallback for client-side routing
 [[redirects]]
   from = "/*"
   to = "/index.html"

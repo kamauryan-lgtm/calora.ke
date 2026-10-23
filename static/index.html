@@ -72,9 +72,13 @@
           <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
           <span>Log Food</span>
         </button>
+        <button onclick="switchTab('history')" id="nav-btn-history" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 flex items-center space-x-1.5">
+          <i data-lucide="history" class="w-3.5 h-3.5 text-blue-400"></i>
+          <span>History</span>
+        </button>
         <button onclick="switchTab('recipes')" id="nav-btn-recipes" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 flex items-center space-x-1.5">
           <i data-lucide="chef-hat" class="w-3.5 h-3.5"></i>
-          <span>Custom Recipes</span>
+          <span>Recipes</span>
         </button>
         <button onclick="switchTab('wellness')" id="nav-btn-wellness" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 flex items-center space-x-1.5">
           <i data-lucide="footprints" class="w-3.5 h-3.5"></i>
@@ -86,18 +90,18 @@
         </button>
         <button onclick="switchTab('gyms')" id="nav-btn-gyms" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 flex items-center space-x-1.5">
           <i data-lucide="building-2" class="w-3.5 h-3.5 text-emerald-400"></i>
-          <span>Gym Partner</span>
+          <span>Gyms</span>
         </button>
-        <button onclick="switchTab('progress')" id="nav-btn-progress" class="nav-tab-btn px-4 py-2 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 flex items-center space-x-1.5">
+        <button onclick="switchTab('progress')" id="nav-btn-progress" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 flex items-center space-x-1.5">
           <i data-lucide="trending-down" class="w-3.5 h-3.5"></i>
           <span>Progress</span>
         </button>
         <button onclick="switchTab('assistant')" id="nav-btn-assistant" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 flex items-center space-x-1.5">
-          <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
-          <span>AI Assistant</span>
+          <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span>NKP AI Coach</span>
         </button>
-        <button onclick="switchTab('admin')" id="nav-btn-admin" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 flex items-center space-x-1.5">
-          <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+        <button onclick="switchTab('admin')" id="nav-btn-admin" class="nav-tab-btn hidden px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-purple-300 bg-purple-950/40 border border-purple-500/30 flex items-center space-x-1.5">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5 text-purple-400"></i>
           <span>Admin</span>
         </button>
       </nav>
@@ -274,6 +278,70 @@
               </div>
             </div>
 
+          </div>
+        </div>
+      </div>
+
+      <!-- TODAY'S WELLNESS HUB (Steps, Sleep, Workouts) -->
+      <div class="calora-card p-5 bg-gradient-to-r from-slate-900/90 to-slate-900/60 border-slate-800">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="activity" class="w-4 h-4 text-emerald-400"></i>
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Today's Wellness & Kinetic Hub</h3>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button onclick="switchTab('wellness')" class="text-xs text-emerald-400 hover:underline flex items-center space-x-1">
+              <span>Steps & Sleep</span>
+              <i data-lucide="arrow-right" class="w-3 h-3"></i>
+            </button>
+            <span class="text-slate-600">·</span>
+            <button onclick="switchTab('workouts')" class="text-xs text-sky-400 hover:underline flex items-center space-x-1">
+              <span>Workouts</span>
+              <i data-lucide="arrow-right" class="w-3 h-3"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <!-- Steps Today -->
+          <div class="bg-slate-950/80 p-3.5 rounded-xl border border-slate-800 space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-400 font-medium flex items-center space-x-1.5">
+                <i data-lucide="footprints" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span>Steps</span>
+              </span>
+              <span class="text-slate-400 font-mono text-[11px]"><span id="dash-steps-goal">10,000</span> goal</span>
+            </div>
+            <div class="text-xl font-black text-white font-mono" id="dash-steps-val">0</div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div id="dash-steps-bar" class="bg-emerald-400 h-full rounded-full transition-all duration-500" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <!-- Sleep Recovery -->
+          <div class="bg-slate-950/80 p-3.5 rounded-xl border border-slate-800 space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-400 font-medium flex items-center space-x-1.5">
+                <i data-lucide="moon" class="w-3.5 h-3.5 text-indigo-400"></i>
+                <span>Sleep Duration</span>
+              </span>
+              <span class="text-amber-400 font-bold text-[11px]" id="dash-sleep-rating">—</span>
+            </div>
+            <div class="text-xl font-black text-white font-mono" id="dash-sleep-val">0h 0m</div>
+            <p class="text-[10px] text-slate-500">Recovery & metabolic rest</p>
+          </div>
+
+          <!-- Workouts Done -->
+          <div class="bg-slate-950/80 p-3.5 rounded-xl border border-slate-800 space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-slate-400 font-medium flex items-center space-x-1.5">
+                <i data-lucide="dumbbell" class="w-3.5 h-3.5 text-sky-400"></i>
+                <span>Training Sessions</span>
+              </span>
+              <button onclick="switchTab('workouts')" class="text-[11px] text-brand-400 font-semibold hover:underline">+ Log Session</button>
+            </div>
+            <div class="text-xl font-black text-white font-mono" id="dash-workouts-val">0 completed</div>
+            <p class="text-[10px] text-slate-500">Kenyan routines & strength sets</p>
           </div>
         </div>
       </div>
@@ -504,6 +572,131 @@
 
     </section>
 
+    <!-- TAB: CLIENT HISTORY & UNIFIED ACTIVITY STREAM -->
+    <section id="tab-history" class="tab-pane hidden space-y-6">
+      
+      <!-- Top Header & Time Filter -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+            <i data-lucide="history" class="w-5 h-5 text-emerald-400"></i>
+            <span>Client Activity & Dietary History</span>
+          </h2>
+          <p class="text-xs text-slate-400">Track past meal diaries, copy full days to today, review weigh-ins, steps, and chronological activity.</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button onclick="loadFoodHistory(7)" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold">7 Days</button>
+          <button onclick="loadFoodHistory(14)" class="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-semibold">14 Days</button>
+          <button onclick="loadFoodHistory(30)" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold">30 Days</button>
+        </div>
+      </div>
+
+      <!-- Subtab Selector -->
+      <div class="flex items-center space-x-2 overflow-x-auto pb-1 bg-slate-900/40 p-1.5 rounded-2xl border border-slate-800/80">
+        <button onclick="switchHistorySubtab('food')" id="hist-subtab-food" class="history-subtab-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-emerald-400 bg-slate-800 border border-emerald-500/30 flex items-center space-x-1.5 shadow-lg shadow-emerald-500/10 whitespace-nowrap">
+          <i data-lucide="utensils" class="w-4 h-4"></i>
+          <span>Meal Diaries</span>
+        </button>
+        <button onclick="switchHistorySubtab('timeline')" id="hist-subtab-timeline" class="history-subtab-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800 flex items-center space-x-1.5 whitespace-nowrap">
+          <i data-lucide="list-ordered" class="w-4 h-4"></i>
+          <span>Activity Timeline</span>
+        </button>
+        <button onclick="switchHistorySubtab('weight')" id="hist-subtab-weight" class="history-subtab-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800 flex items-center space-x-1.5 whitespace-nowrap">
+          <i data-lucide="scale" class="w-4 h-4"></i>
+          <span>Weigh-Ins</span>
+        </button>
+        <button onclick="switchHistorySubtab('steps')" id="hist-subtab-steps" class="history-subtab-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800 flex items-center space-x-1.5 whitespace-nowrap">
+          <i data-lucide="footprints" class="w-4 h-4"></i>
+          <span>Steps History</span>
+        </button>
+        <button onclick="switchHistorySubtab('sleep')" id="hist-subtab-sleep" class="history-subtab-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800 flex items-center space-x-1.5 whitespace-nowrap">
+          <i data-lucide="moon" class="w-4 h-4"></i>
+          <span>Sleep History</span>
+        </button>
+        <button onclick="switchHistorySubtab('workouts')" id="hist-subtab-workouts" class="history-subtab-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800 flex items-center space-x-1.5 whitespace-nowrap">
+          <i data-lucide="dumbbell" class="w-4 h-4"></i>
+          <span>Workouts History</span>
+        </button>
+      </div>
+
+      <!-- PANEL 1: Daily Food & Meal History -->
+      <div id="hist-panel-food" class="history-panel space-y-4">
+        <div id="food-history-container" class="space-y-4">
+          <!-- Injected by history.js -->
+        </div>
+      </div>
+
+      <!-- PANEL 2: Unified Chronological Activity Timeline -->
+      <div id="hist-panel-timeline" class="history-panel hidden space-y-4">
+        <div class="calora-card p-6 space-y-4">
+          <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-2">
+            <i data-lucide="clock" class="w-4 h-4 text-emerald-400"></i>
+            <span>Everything You've Done in CALORA</span>
+          </h3>
+          <p class="text-xs text-slate-400">A unified chronological stream of meals, weigh-ins, sleep, and workouts.</p>
+          <div id="timeline-history-container" class="space-y-3 pt-2">
+            <!-- Injected by history.js -->
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL 3: Weight History -->
+      <div id="hist-panel-weight" class="history-panel hidden space-y-4">
+        <div class="calora-card p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-2">
+              <i data-lucide="scale" class="w-4 h-4 text-emerald-400"></i>
+              <span>Weight & Weigh-In Logs</span>
+            </h3>
+            <button onclick="switchTab('progress')" class="text-xs text-emerald-400 hover:underline">View Chart</button>
+          </div>
+          <div id="weight-history-container" class="space-y-2">
+            <!-- Injected by history.js -->
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL 4: Steps History -->
+      <div id="hist-panel-steps" class="history-panel hidden space-y-4">
+        <div class="calora-card p-6 space-y-4">
+          <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-2">
+            <i data-lucide="footprints" class="w-4 h-4 text-emerald-400"></i>
+            <span>Daily Step Count History</span>
+          </h3>
+          <div id="steps-history-container" class="space-y-2">
+            <!-- Injected by history.js -->
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL 5: Sleep History -->
+      <div id="hist-panel-sleep" class="history-panel hidden space-y-4">
+        <div class="calora-card p-6 space-y-4">
+          <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-2">
+            <i data-lucide="moon" class="w-4 h-4 text-indigo-400"></i>
+            <span>Sleep Duration & Recovery Quality</span>
+          </h3>
+          <div id="sleep-history-container" class="space-y-2">
+            <!-- Injected by history.js -->
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL 6: Workouts History -->
+      <div id="hist-panel-workouts" class="history-panel hidden space-y-4">
+        <div class="calora-card p-6 space-y-4">
+          <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center space-x-2">
+            <i data-lucide="dumbbell" class="w-4 h-4 text-sky-400"></i>
+            <span>Training & Exercise History</span>
+          </h3>
+          <div id="workouts-history-container" class="space-y-2">
+            <!-- Injected by history.js -->
+          </div>
+        </div>
+      </div>
+
+    </section>
+
     <!-- TAB 3: PROGRESS & TRENDS (Weight, Adaptive Engine, Weekly Analysis) -->
     <section id="tab-progress" class="tab-pane hidden space-y-6">
       
@@ -707,19 +900,25 @@
 
     </section>
 
-    <!-- TAB 5: AI NUTRITION ASSISTANT & MEAL RECOMMENDATIONS -->
+    <!-- TAB 5: NKP AI COACH & REAL-TIME MEMBER TELEMETRY -->
     <section id="tab-assistant" class="tab-pane hidden space-y-6">
       
-      <!-- Top Assistant Header & Live Context -->
+      <!-- Top Live Telemetry Banner (Injected by assistant.js) -->
+      <div id="ai-context-banner"></div>
+
+      <!-- Assistant Header & Recommendations -->
       <div class="calora-card p-6 space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div class="flex items-center space-x-3">
-            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-brand-600 to-brand-400 flex items-center justify-center shadow-lg shadow-brand-500/20 text-slate-950">
-              <i data-lucide="bot" class="w-6 h-6"></i>
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-brand-400 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-slate-950">
+              <i data-lucide="sparkles" class="w-6 h-6"></i>
             </div>
             <div>
-              <h2 class="text-lg font-bold text-white">CALORA AI Nutrition Assistant</h2>
-              <p class="text-xs text-slate-400">Context-aware · Grounded in verified foods · Never fabricates facts</p>
+              <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+                <span>NKP AI Coach</span>
+                <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Kenya Nutrition & Kinetic Performance</span>
+              </h2>
+              <p class="text-xs text-slate-400">Context-aware · Direct access to your calories, macros, steps & sleep · Never fabricates facts</p>
             </div>
           </div>
 
@@ -730,7 +929,7 @@
               <strong class="text-brand-400 text-sm font-mono" id="ai-context-remaining-cal">630 kcal</strong>
             </div>
             <div class="border-l border-slate-800 pl-4">
-              <span class="text-slate-500 block text-[10px]">PROTEIN NEEDED</span>
+              <span class="text-slate-500 block text-[10px]">PROTEIN GAP</span>
               <strong class="text-white text-sm font-mono" id="ai-context-remaining-protein">48g</strong>
             </div>
           </div>
@@ -740,10 +939,10 @@
         <div class="space-y-3 pt-2">
           <div class="flex items-center justify-between">
             <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
-              <i data-lucide="sparkles" class="w-3.5 h-3.5 text-brand-400"></i>
-              <span>Smart Meal Recommendations (Matching Remaining Calories)</span>
+              <i data-lucide="utensils" class="w-3.5 h-3.5 text-brand-400"></i>
+              <span>Smart Meal Recommendations (Fittings Into Remaining Energy)</span>
             </h3>
-            <button onclick="refreshRecommendations()" class="text-xs text-brand-400 hover:underline">Refresh</button>
+            <button onclick="refreshRecommendations()" class="text-xs text-brand-400 hover:underline">Refresh Ideas</button>
           </div>
           
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="ai-recommendations-drawer">
@@ -754,17 +953,24 @@
 
       <!-- Chat Conversation Box -->
       <div class="calora-card p-6 space-y-4">
-        <h3 class="text-sm font-bold text-white flex items-center space-x-2">
-          <i data-lucide="messages-square" class="w-4 h-4 text-brand-400"></i>
-          <span>Ask Nutrition Questions</span>
-        </h3>
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+            <i data-lucide="messages-square" class="w-4 h-4 text-brand-400"></i>
+            <span>Chat with NKP AI Coach</span>
+          </h3>
+          <span class="text-xs text-emerald-400 font-mono flex items-center space-x-1">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>Online & Synced</span>
+          </span>
+        </div>
 
         <!-- Suggested Prompt Chips -->
         <div class="flex flex-wrap gap-2 text-xs">
-          <button onclick="sendAssistantChip('What can I eat with my remaining calories?')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 transition-all">"What can I eat with remaining calories?"</button>
-          <button onclick="sendAssistantChip('Give me a high-protein Kenyan dinner.')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 transition-all">"Give me a high-protein Kenyan dinner."</button>
-          <button onclick="sendAssistantChip('I only have eggs, tomatoes and chapati. What can I make?')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 transition-all">"Eggs, tomatoes & chapati idea"</button>
-          <button onclick="sendAssistantChip('Why am I not losing weight this week?')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 transition-all">"Why am I not losing weight?"</button>
+          <button onclick="sendAssistantChip('How can I fit Ndengu and Chapati into my deficit?')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 transition-all">"Fit Ndengu & Chapati into deficit"</button>
+          <button onclick="sendAssistantChip('Give me a high-protein Kenyan dinner.')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 transition-all">"High-protein Kenyan dinner"</button>
+          <button onclick="sendAssistantChip('Why did my scale weight spike after salty Nyama Choma?')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 transition-all">"Weight spike after Nyama Choma?"</button>
+          <button onclick="sendAssistantChip('What should I eat pre-workout before heavy training?')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 transition-all">"Pre-workout Kenyan meal idea"</button>
+          <button onclick="sendAssistantChip('How do I close my remaining protein gap today?')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 transition-all">"Close my protein gap"</button>
         </div>
 
         <!-- Chat history messages -->
@@ -774,7 +980,7 @@
 
         <!-- Chat input bar -->
         <div class="flex items-center space-x-2 pt-2">
-          <input type="text" id="ai-chat-input" onkeydown="if(event.key==='Enter') sendAssistantMessage()" placeholder="Ask about meals, cooking oil adjustments, deficits, or high-protein Kenyan foods..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-500">
+          <input type="text" id="ai-chat-input" onkeydown="if(event.key==='Enter') sendAssistantMessage()" placeholder="Ask about Kenyan meals, cooking oil adjustments, plateaus, pre-workout fueling..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-500">
           <button onclick="sendAssistantMessage()" id="ai-chat-send-btn" class="bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-5 py-3 rounded-xl text-sm transition-all flex items-center space-x-1.5">
             <i data-lucide="send" class="w-4 h-4"></i>
             <span>Send</span>
@@ -885,36 +1091,178 @@
 
     </section>
 
-    <!-- TAB 7: ADMIN PANEL (Section 36) -->
+    <!-- TAB 7: SUPER-ADMIN CONSOLE (Accessible Exclusively to Admin) -->
     <section id="tab-admin" class="tab-pane hidden space-y-6">
       
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="text-xl font-bold text-white flex items-center space-x-2">
-            <i data-lucide="shield-check" class="w-5 h-5 text-brand-400"></i>
-            <span>CALORA Admin Dashboard & Verification Console</span>
-          </h2>
-          <p class="text-xs text-slate-400">Review reported nutrition discrepancies, audit logs, and verified database health.</p>
+      <!-- Top Super-Admin Header -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-purple-950/70 via-slate-900 to-slate-900 p-5 rounded-2xl border border-purple-500/30">
+        <div class="flex items-center space-x-3">
+          <div class="w-12 h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center font-black shadow-lg shadow-purple-600/30">
+            <i data-lucide="shield-check" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+              <span>CALORA Super-Admin Management Console</span>
+              <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40">Master Level</span>
+            </h2>
+            <p class="text-xs text-slate-400">Restricted console: Food composition DB, gym partners, subscription pricing, user roles, financial ledger, and audit trail.</p>
+          </div>
         </div>
-        <span class="text-xs font-mono bg-brand-500/10 text-brand-400 px-3 py-1 rounded-lg border border-brand-500/20 font-bold">Admin Privileges Active</span>
+
+        <div class="flex items-center space-x-2 self-start sm:self-auto">
+          <span class="text-xs font-mono bg-purple-900/50 text-purple-300 px-3 py-1.5 rounded-xl border border-purple-500/30 font-bold flex items-center space-x-1.5">
+            <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+            <span>Admin Active</span>
+          </span>
+        </div>
       </div>
 
-      <!-- Database Health Stats -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4" id="admin-stats-container">
-        <!-- Injected by admin.js -->
+      <!-- Admin Subtab Switcher -->
+      <div class="flex items-center space-x-2 overflow-x-auto pb-1 bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800">
+        <button onclick="switchAdminSubtab('overview')" id="adm-subtab-overview" class="admin-subtab-btn px-3 py-2 rounded-xl text-xs font-bold text-brand-400 bg-slate-800 border border-brand-500/30 flex items-center space-x-1.5 whitespace-nowrap shadow-md shadow-brand-500/10">
+          <i data-lucide="bar-chart-2" class="w-4 h-4"></i>
+          <span>Platform KPIs</span>
+        </button>
+        <button onclick="switchAdminSubtab('foods')" id="adm-subtab-foods" class="admin-subtab-btn px-3 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800 flex items-center space-x-1.5 whitespace-nowrap">
+          <i data-lucide="database" class="w-4 h-4"></i>
+          <span>Food Composition DB</span>
+        </button>
+        <button onclick="switchAdminSubtab('plans')" id="adm-subtab-plans" class="admin-subtab-btn px-3 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800 flex items-center space-x-1.5 whitespace-nowrap">
+          <i data-lucide="credit-card" class="w-4 h-4"></i>
+          <span>Subscription Plans</span>
+        </button>
+        <button onclick="switchAdminSubtab('gyms')" id="adm-subtab-gyms" class="admin-subtab-btn px-3 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800 flex items-center space-x-1.5 whitespace-nowrap">
+          <i data-lucide="building-2" class="w-4 h-4"></i>
+          <span>Gym Workspaces</span>
+        </button>
+        <button onclick="switchAdminSubtab('users')" id="adm-subtab-users" class="admin-subtab-btn px-3 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800 flex items-center space-x-1.5 whitespace-nowrap">
+          <i data-lucide="users" class="w-4 h-4"></i>
+          <span>Users & Roles</span>
+        </button>
+        <button onclick="switchAdminSubtab('revenue')" id="adm-subtab-revenue" class="admin-subtab-btn px-3 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800 flex items-center space-x-1.5 whitespace-nowrap">
+          <i data-lucide="wallet" class="w-4 h-4"></i>
+          <span>SaaS Revenue Ledger</span>
+        </button>
+        <button onclick="switchAdminSubtab('reports')" id="adm-subtab-reports" class="admin-subtab-btn px-3 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800 flex items-center space-x-1.5 whitespace-nowrap">
+          <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+          <span>Discrepancy Reports</span>
+        </button>
+        <button onclick="switchAdminSubtab('audit')" id="adm-subtab-audit" class="admin-subtab-btn px-3 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-800 flex items-center space-x-1.5 whitespace-nowrap">
+          <i data-lucide="file-text" class="w-4 h-4"></i>
+          <span>Audit Trail</span>
+        </button>
       </div>
 
-      <!-- User Discrepancy Error Reports Queue (Section 37) -->
-      <div class="calora-card p-6 space-y-4">
-        <div class="flex items-center justify-between">
+      <!-- 1. OVERVIEW & PLATFORM KPIS -->
+      <div id="adm-panel-overview" class="admin-panel space-y-6">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4" id="admin-stats-container">
+          <!-- Injected by admin.js -->
+        </div>
+      </div>
+
+      <!-- 2. FOOD DATABASE MANAGER -->
+      <div id="adm-panel-foods" class="admin-panel hidden space-y-4">
+        <div class="calora-card p-4 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 class="text-base font-bold text-white flex items-center space-x-2">
+                <i data-lucide="database" class="w-4 h-4 text-emerald-400"></i>
+                <span>Nutritional Composition Database (KFCT, USDA & Verified Items)</span>
+              </h3>
+              <p class="text-xs text-slate-400">Search, edit laboratory nutrient profiles per 100g, or add new verified Kenyan dishes.</p>
+            </div>
+            <button onclick="openAddFoodModal()" class="bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs flex items-center space-x-1.5 shadow-md shadow-brand-500/20 self-start sm:self-auto">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span>Add Verified Food</span>
+            </button>
+          </div>
+
+          <div class="relative">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+            <input type="text" id="admin-food-search" oninput="loadAdminFoodDatabase()" placeholder="Filter database by food name or category (e.g. Ugali, Ndengu, Sukuma, Pilau)..." class="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500">
+          </div>
+        </div>
+
+        <div class="calora-card overflow-hidden" id="admin-foods-table-container">
+          <!-- Injected by admin.js -->
+        </div>
+      </div>
+
+      <!-- 3. SUBSCRIPTION PLANS MANAGER -->
+      <div id="adm-panel-plans" class="admin-panel hidden space-y-4">
+        <div class="calora-card p-4">
           <h3 class="text-base font-bold text-white flex items-center space-x-2">
-            <i data-lucide="flag" class="w-4 h-4 text-amber-400"></i>
-            <span>User Reported Discrepancies ("This calorie value looks wrong")</span>
+            <i data-lucide="credit-card" class="w-4 h-4 text-emerald-400"></i>
+            <span>Subscription Tier Pricing & Entitlements</span>
           </h3>
+          <p class="text-xs text-slate-400 mt-1">Configure monthly prices, member limits, and features dynamically stored in the database without code redeployments.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="admin-plans-container">
+          <!-- Injected by admin.js -->
+        </div>
+      </div>
+
+      <!-- 4. GYM WORKSPACES MANAGER -->
+      <div id="adm-panel-gyms" class="admin-panel hidden space-y-4">
+        <div class="calora-card p-4">
+          <h3 class="text-base font-bold text-white flex items-center space-x-2">
+            <i data-lucide="building-2" class="w-4 h-4 text-emerald-400"></i>
+            <span>Registered Partner Gym Workspaces</span>
+          </h3>
+          <p class="text-xs text-slate-400 mt-1">Review multi-tenant gym workspaces, active member counts, and open their dedicated branded portals.</p>
+        </div>
+
+        <div class="calora-card overflow-hidden" id="admin-gyms-container">
+          <!-- Injected by admin.js -->
+        </div>
+      </div>
+
+      <!-- 5. USERS & ROLE ASSIGNMENTS -->
+      <div id="adm-panel-users" class="admin-panel hidden space-y-4">
+        <div class="calora-card p-4 space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 class="text-base font-bold text-white flex items-center space-x-2">
+                <i data-lucide="users" class="w-4 h-4 text-emerald-400"></i>
+                <span>Platform Users & Access Permissions</span>
+              </h3>
+              <p class="text-xs text-slate-400">Promote or change user roles across Client, Coach, Gym Owner, and Admin.</p>
+            </div>
+          </div>
+
+          <div class="relative">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+            <input type="text" id="admin-user-search" oninput="loadAdminUserManagement()" placeholder="Search users by name or email address..." class="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500">
+          </div>
+        </div>
+
+        <div class="calora-card overflow-hidden" id="admin-users-container">
+          <!-- Injected by admin.js -->
+        </div>
+      </div>
+
+      <!-- 6. SAAS REVENUE LEDGER -->
+      <div id="adm-panel-revenue" class="admin-panel hidden space-y-4">
+        <div id="admin-revenue-container">
+          <!-- Injected by admin.js -->
+        </div>
+      </div>
+
+      <!-- 7. USER REPORTED DISCREPANCIES -->
+      <div id="adm-panel-reports" class="admin-panel hidden space-y-4">
+        <div class="calora-card p-4 flex items-center justify-between">
+          <div>
+            <h3 class="text-base font-bold text-white flex items-center space-x-2">
+              <i data-lucide="flag" class="w-4 h-4 text-amber-400"></i>
+              <span>User-Reported Nutrition & Portion Discrepancies</span>
+            </h3>
+            <p class="text-xs text-slate-400 mt-1">Crowdsourced feedback queue reviewed against laboratory reference data.</p>
+          </div>
           <select id="admin-report-filter" onchange="loadAdminReports()" class="bg-slate-900 text-xs text-slate-200 border border-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none">
-            <option value="All">All Statuses</option>
             <option value="pending" selected>Pending Investigation</option>
             <option value="resolved">Resolved</option>
+            <option value="All">All Reports</option>
           </select>
         </div>
 
@@ -923,13 +1271,17 @@
         </div>
       </div>
 
-      <!-- Audit Log History -->
-      <div class="calora-card p-6 space-y-4">
-        <h3 class="text-base font-bold text-white flex items-center space-x-2">
-          <i data-lucide="history" class="w-4 h-4 text-brand-400"></i>
-          <span>Administrative Audit Trail</span>
-        </h3>
-        <div class="space-y-2 text-xs font-mono" id="admin-audit-logs">
+      <!-- 8. AUDIT TRAIL -->
+      <div id="adm-panel-audit" class="admin-panel hidden space-y-4">
+        <div class="calora-card p-4">
+          <h3 class="text-base font-bold text-white flex items-center space-x-2">
+            <i data-lucide="file-text" class="w-4 h-4 text-emerald-400"></i>
+            <span>Administrative Audit Log</span>
+          </h3>
+          <p class="text-xs text-slate-400 mt-1">Immutable record of every administrative action, price change, food mutation, and role update.</p>
+        </div>
+
+        <div id="admin-audit-logs-container">
           <!-- Injected by admin.js -->
         </div>
       </div>
@@ -1048,28 +1400,32 @@
 
   </main>
 
-  <!-- MOBILE BOTTOM NAVIGATION (Section 32) -->
+  <!-- MOBILE BOTTOM NAVIGATION (Mobile-friendly sticky bar) -->
   <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800 mobile-nav-bar">
-    <div class="grid grid-cols-5 h-16">
-      <button onclick="switchTab('dashboard')" id="mob-nav-dashboard" class="mobile-tab-btn flex flex-col items-center justify-center text-brand-400">
+    <div class="flex items-center justify-around h-16 px-1">
+      <button onclick="switchTab('dashboard')" id="mob-nav-dashboard" class="mobile-tab-btn flex-1 py-1 flex flex-col items-center justify-center text-brand-400">
         <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
-        <span class="text-[10px] font-medium mt-1">Dashboard</span>
+        <span class="text-[9px] font-medium mt-1">Home</span>
       </button>
-      <button onclick="switchTab('foodlog')" id="mob-nav-foodlog" class="mobile-tab-btn flex flex-col items-center justify-center text-slate-400">
+      <button onclick="switchTab('foodlog')" id="mob-nav-foodlog" class="mobile-tab-btn flex-1 py-1 flex flex-col items-center justify-center text-slate-400">
         <i data-lucide="plus-circle" class="w-5 h-5"></i>
-        <span class="text-[10px] font-medium mt-1">Log Food</span>
+        <span class="text-[9px] font-medium mt-1">Log Food</span>
       </button>
-      <button onclick="switchTab('progress')" id="mob-nav-progress" class="mobile-tab-btn flex flex-col items-center justify-center text-slate-400">
-        <i data-lucide="trending-down" class="w-5 h-5"></i>
-        <span class="text-[10px] font-medium mt-1">Progress</span>
+      <button onclick="switchTab('history')" id="mob-nav-history" class="mobile-tab-btn flex-1 py-1 flex flex-col items-center justify-center text-slate-400">
+        <i data-lucide="history" class="w-5 h-5"></i>
+        <span class="text-[9px] font-medium mt-1">History</span>
       </button>
-      <button onclick="switchTab('recipes')" id="mob-nav-recipes" class="mobile-tab-btn flex flex-col items-center justify-center text-slate-400">
-        <i data-lucide="book-open" class="w-5 h-5"></i>
-        <span class="text-[10px] font-medium mt-1">Foods</span>
+      <button onclick="switchTab('workouts')" id="mob-nav-workouts" class="mobile-tab-btn flex-1 py-1 flex flex-col items-center justify-center text-slate-400">
+        <i data-lucide="dumbbell" class="w-5 h-5"></i>
+        <span class="text-[9px] font-medium mt-1">Train</span>
       </button>
-      <button onclick="switchTab('assistant')" id="mob-nav-assistant" class="mobile-tab-btn flex flex-col items-center justify-center text-slate-400">
+      <button onclick="switchTab('assistant')" id="mob-nav-assistant" class="mobile-tab-btn flex-1 py-1 flex flex-col items-center justify-center text-slate-400">
         <i data-lucide="sparkles" class="w-5 h-5"></i>
-        <span class="text-[10px] font-medium mt-1">AI Assistant</span>
+        <span class="text-[9px] font-medium mt-1">NKP AI</span>
+      </button>
+      <button onclick="switchTab('admin')" id="mob-nav-admin" class="mobile-tab-btn hidden flex-1 py-1 flex flex-col items-center justify-center text-purple-400">
+        <i data-lucide="shield-check" class="w-5 h-5"></i>
+        <span class="text-[9px] font-medium mt-1">Admin</span>
       </button>
     </div>
   </nav>
@@ -1212,6 +1568,143 @@
     </div>
   </div>
 
+  <!-- 5. ADMIN ADD VERIFIED FOOD MODAL -->
+  <div id="modal-admin-add-food" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md hidden modal-overlay">
+    <div class="calora-card p-6 max-w-lg w-full bg-slate-900 border-slate-700 space-y-4 modal-content">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="database" class="w-5 h-5 text-emerald-400"></i>
+          <h3 class="text-base font-bold text-white">Add Verified Food Composition</h3>
+        </div>
+        <button onclick="closeModal('modal-admin-add-food')" class="p-1 text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="form-admin-add-food" onsubmit="handleCreateFoodSubmit(event)" class="space-y-4">
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-slate-300">Food Name (e.g. Ugali wa Mahindi, Sukuma Wiki)</label>
+          <input type="text" id="adm-add-food-name" required placeholder="Food name..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="text-xs font-semibold text-slate-300">Category</label>
+            <select id="adm-add-food-cat" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
+              <option value="Kenyan meals">Kenyan meals</option>
+              <option value="Grains & Cereals">Grains & Cereals</option>
+              <option value="Vegetables">Vegetables</option>
+              <option value="Meat & Poultry">Meat & Poultry</option>
+              <option value="Legumes">Legumes</option>
+              <option value="Dairy">Dairy</option>
+              <option value="Fruits">Fruits</option>
+              <option value="Snacks & Bakery">Snacks & Bakery</option>
+            </select>
+          </div>
+
+          <div class="space-y-1">
+            <label class="text-xs font-semibold text-slate-300">Reference Source</label>
+            <input type="text" id="adm-add-food-src" value="Kenya Food Composition Tables (KFCT), 2018" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <div class="space-y-1">
+            <label class="text-[11px] text-slate-400">Calories/100g</label>
+            <input type="number" step="0.1" id="adm-add-food-cal" required placeholder="0" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-brand-400 font-bold">
+          </div>
+          <div class="space-y-1">
+            <label class="text-[11px] text-slate-400">Protein (g)</label>
+            <input type="number" step="0.1" id="adm-add-food-prot" required placeholder="0" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
+          </div>
+          <div class="space-y-1">
+            <label class="text-[11px] text-slate-400">Carbs (g)</label>
+            <input type="number" step="0.1" id="adm-add-food-carbs" required placeholder="0" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
+          </div>
+          <div class="space-y-1">
+            <label class="text-[11px] text-slate-400">Fat (g)</label>
+            <input type="number" step="0.1" id="adm-add-food-fat" required placeholder="0" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
+          </div>
+          <div class="space-y-1">
+            <label class="text-[11px] text-slate-400">Fibre (g)</label>
+            <input type="number" step="0.1" id="adm-add-food-fibre" required placeholder="0" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
+          </div>
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+          <button type="button" onclick="closeModal('modal-admin-add-food')" class="px-4 py-2 text-xs text-slate-400 hover:text-white">Cancel</button>
+          <button type="submit" class="bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition-all">Save to Database</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 6. ADMIN EDIT FOOD MODAL -->
+  <div id="modal-admin-edit-food" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md hidden modal-overlay">
+    <div class="calora-card p-6 max-w-lg w-full bg-slate-900 border-slate-700 space-y-4 modal-content">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="edit-3" class="w-5 h-5 text-emerald-400"></i>
+          <h3 class="text-base font-bold text-white">Edit Food Nutrient Profile</h3>
+        </div>
+        <button onclick="closeModal('modal-admin-edit-food')" class="p-1 text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="form-admin-edit-food" onsubmit="handleUpdateFoodSubmit(event)" class="space-y-4">
+        <input type="hidden" id="adm-edit-food-id">
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="text-xs font-semibold text-slate-300">Food Name</label>
+            <input type="text" id="adm-edit-food-name" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+          </div>
+          <div class="space-y-1">
+            <label class="text-xs font-semibold text-slate-300">Category</label>
+            <input type="text" id="adm-edit-food-cat" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <div class="space-y-1">
+            <label class="text-[11px] text-slate-400">Calories/100g</label>
+            <input type="number" step="0.1" id="adm-edit-food-cal" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-brand-400 font-bold">
+          </div>
+          <div class="space-y-1">
+            <label class="text-[11px] text-slate-400">Protein (g)</label>
+            <input type="number" step="0.1" id="adm-edit-food-prot" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
+          </div>
+          <div class="space-y-1">
+            <label class="text-[11px] text-slate-400">Carbs (g)</label>
+            <input type="number" step="0.1" id="adm-edit-food-carbs" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
+          </div>
+          <div class="space-y-1">
+            <label class="text-[11px] text-slate-400">Fat (g)</label>
+            <input type="number" step="0.1" id="adm-edit-food-fat" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
+          </div>
+          <div class="space-y-1">
+            <label class="text-[11px] text-slate-400">Fibre (g)</label>
+            <input type="number" step="0.1" id="adm-edit-food-fibre" required class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono">
+          </div>
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-slate-300">Verification Status</label>
+          <select id="adm-edit-food-verified" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
+            <option value="1">Verified (Official Lab Data / KFCT)</option>
+            <option value="0">Estimated (Crowdsourced / Provisional)</option>
+          </select>
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+          <button type="button" onclick="closeModal('modal-admin-edit-food')" class="px-4 py-2 text-xs text-slate-400 hover:text-white">Cancel</button>
+          <button type="submit" class="bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition-all">Update Food Item</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- 4. AUTH MODAL (Switch user / Sign in / Demo Switch) -->
   <div id="modal-auth" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md hidden modal-overlay">
     <div class="calora-card p-6 max-w-md w-full bg-slate-900 border-slate-700 space-y-5 modal-content">
@@ -1274,6 +1767,7 @@
   <script src="/static/js/app.js"></script>
   <script src="/static/js/dashboard.js"></script>
   <script src="/static/js/food_log.js"></script>
+  <script src="/static/js/history.js"></script>
   <script src="/static/js/recipes.js"></script>
   <script src="/static/js/progress.js"></script>
   <script src="/static/js/assistant.js"></script>

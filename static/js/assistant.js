@@ -1,12 +1,13 @@
 /**
- * CALORA - AI Nutrition Assistant & Smart Meal Recommendation Engine
- * Accuracy over assumptions.
+ * CALORA - NKP AI Coach (Nutrition & Kinetic Performance AI Coach)
+ * Real-time member telemetry context, Kenyan Food Composition Tables, and uncertainty-aware coaching.
  */
 
 let assistantChatHistory = [
   {
     sender: "bot",
-    text: "Hello! I am your CALORA Nutrition Assistant. I use your real-time diary status and verified food composition tables to answer questions and suggest meals without fabricating precision. How can I help you today?"
+    coach: "NKP AI Coach",
+    text: "Habari! I am your **NKP AI Coach** (Nutrition & Kinetic Performance). I am directly synchronized with your live CALORA profile, today's calorie diary, remaining macros, steps, and workouts.\n\nAsk me anything about fitting Kenyan foods into your deficit, closing your protein gap, or optimizing your daily nutrition!"
   }
 ];
 
@@ -23,9 +24,43 @@ async function refreshAssistantContextBanner() {
     const res = await apiCall(`/api/assistant/recommendations?date_str=${AppState.currentDate}`);
     const ctx = res.context;
 
+    const banner = document.getElementById("ai-context-banner");
+    if (banner && ctx) {
+      banner.innerHTML = `
+        <div class="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-emerald-950/80 to-slate-900 p-3.5 rounded-2xl border border-emerald-500/30">
+          <div class="flex items-center space-x-2.5">
+            <div class="w-8 h-8 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black text-xs shadow-md shadow-emerald-500/20">
+              NKP
+            </div>
+            <div>
+              <div class="text-xs font-bold text-white flex items-center space-x-1.5">
+                <span>NKP AI Coach Telemetry Active</span>
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              </div>
+              <span class="text-[11px] text-slate-400">Synced to ${ctx.name || 'Member'} (${ctx.weight_kg || 80} kg)</span>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3 text-xs font-mono">
+            <span class="bg-slate-900/90 px-2.5 py-1 rounded-lg border border-slate-800 text-slate-300">
+              Consumed: <strong class="text-white">${ctx.consumed_calories} kcal</strong>
+            </span>
+            <span class="bg-slate-900/90 px-2.5 py-1 rounded-lg border border-slate-800 text-brand-400">
+              Remaining: <strong class="text-emerald-400">${ctx.remaining_calories} kcal</strong>
+            </span>
+            <span class="bg-slate-900/90 px-2.5 py-1 rounded-lg border border-slate-800 text-amber-300">
+              Protein Gap: <strong>${ctx.remaining_protein_g}g</strong>
+            </span>
+            <span class="bg-slate-900/90 px-2.5 py-1 rounded-lg border border-slate-800 text-blue-300">
+              Steps: <strong>${(ctx.steps_today || 0).toLocaleString()}</strong>
+            </span>
+          </div>
+        </div>
+      `;
+    }
+
     const calEl = document.getElementById("ai-context-remaining-cal");
     const protEl = document.getElementById("ai-context-remaining-protein");
-
     if (calEl) calEl.textContent = `${ctx.remaining_calories} kcal`;
     if (protEl) protEl.textContent = `${ctx.remaining_protein_g}g`;
   } catch (err) {
@@ -34,7 +69,7 @@ async function refreshAssistantContextBanner() {
 }
 
 // ----------------------------------------------------
-// 1. MEAL RECOMMENDATION ENGINE (Section 28)
+// 1. MEAL RECOMMENDATION ENGINE
 // ----------------------------------------------------
 
 async function refreshRecommendations() {
@@ -63,7 +98,6 @@ async function refreshRecommendations() {
             <p class="text-[11px] text-slate-400">${rec.tagline}</p>
           </div>
 
-          <!-- Items list -->
           <div class="space-y-1 bg-slate-900/70 p-2.5 rounded-xl border border-slate-800 text-[11px]">
             ${rec.items.map(i => `
               <div class="flex justify-between text-slate-300">
@@ -73,7 +107,6 @@ async function refreshRecommendations() {
             `).join("")}
           </div>
 
-          <!-- Macros -->
           <div class="flex justify-between text-[11px] text-slate-400 font-mono">
             <span>Protein: <strong class="text-white">${rec.protein_g}g</strong></span>
             <span>Fibre: <strong class="text-white">${rec.fibre_g}g</strong></span>
@@ -104,99 +137,107 @@ async function logRecommendedMeal(rec) {
         meal_type: "dinner",
         food_name: item.food_name,
         portion_name: item.portion,
-        gram_weight: 150,
-        calories: item.calories,
+        gram_weight: 150.0,
         cooking_oil_type: "none"
       });
     }
 
-    showToast(`Logged "${rec.title}" to Dinner!`, "success");
-    switchTab("dashboard");
+    showToast(`Logged "${rec.title}" to your dinner diary!`, "success");
+    refreshAssistantContextBanner();
+    refreshRecommendations();
+    loadDashboardData();
   } catch (err) {
-    showToast(err.message, "error");
+    showToast(`Failed to log: ${err.message}`, "error");
   }
 }
 
-
 // ----------------------------------------------------
-// 2. CONTEXTUAL AI CHAT (Section 27)
+// 2. CONVERSATIONAL CHAT ENGINE
 // ----------------------------------------------------
 
 function renderAssistantChat() {
   const container = document.getElementById("ai-chat-messages");
   if (!container) return;
 
-  container.innerHTML = assistantChatHistory.map(msg => `
-    <div class="flex items-start space-x-2.5 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}">
-      ${msg.sender === 'bot' ? `
-        <div class="w-7 h-7 rounded-lg bg-brand-500 text-slate-950 flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5">
-          <i data-lucide="bot" class="w-4 h-4"></i>
+  container.innerHTML = assistantChatHistory.map(msg => {
+    const isBot = msg.sender === "bot";
+    return `
+      <div class="flex items-start space-x-3 ${isBot ? '' : 'flex-row-reverse space-x-reverse'}">
+        <div class="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center font-bold text-xs ${
+          isBot ? 'bg-gradient-to-tr from-brand-600 to-emerald-400 text-slate-950 shadow-md shadow-brand-500/20' : 'bg-slate-800 text-slate-300'
+        }">
+          ${isBot ? '<i data-lucide="bot" class="w-4 h-4"></i>' : '<i data-lucide="user" class="w-4 h-4"></i>'}
         </div>
-      ` : ''}
 
-      <div class="max-w-[85%] rounded-2xl px-4 py-3 text-xs sm:text-sm leading-relaxed ${
-        msg.sender === 'user' ? 'bg-brand-600 text-slate-950 font-medium rounded-br-none' :
-        'bg-slate-900 border border-slate-800 text-slate-200 rounded-bl-none space-y-1.5'
-      }">
-        ${formatAssistantResponseMarkdown(msg.text)}
+        <div class="max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-3 text-xs sm:text-sm leading-relaxed ${
+          isBot ? 'bg-slate-900 border border-slate-800 text-slate-200 shadow-lg' : 'bg-brand-500 text-slate-950 font-medium'
+        }">
+          ${isBot ? `<span class="text-[10px] uppercase font-bold text-brand-400 tracking-wider block mb-1">NKP AI Coach</span>` : ''}
+          <div class="prose prose-invert prose-xs">${formatChatMarkdown(msg.text)}</div>
+        </div>
       </div>
-
-      ${msg.sender === 'user' ? `
-        <div class="w-7 h-7 rounded-lg bg-slate-800 text-slate-200 flex items-center justify-center flex-shrink-0 text-xs font-bold mt-0.5">
-          ${AppState.user ? AppState.user.name.charAt(0).toUpperCase() : 'U'}
-        </div>
-      ` : ''}
-    </div>
-  `).join("");
+    `;
+  }).join("");
 
   container.scrollTop = container.scrollHeight;
   lucide.createIcons();
 }
 
-function formatAssistantResponseMarkdown(text) {
-  // Simple clean markdown parser for bold, lists, and line breaks
-  let html = text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/\n\n/g, '<div class="h-2"></div>')
-    .replace(/\n- /g, '<br>• ')
-    .replace(/\n\d\. /g, '<br>• ');
-  return html;
-}
-
-function sendAssistantChip(text) {
+function askAssistantPrompt(promptText) {
   const input = document.getElementById("ai-chat-input");
   if (input) {
-    input.value = text;
-    sendAssistantMessage();
+    input.value = promptText;
+    handleAssistantSend();
   }
 }
 
-async function sendAssistantMessage() {
+async function handleAssistantSend() {
   const input = document.getElementById("ai-chat-input");
-  if (!input || !input.value.trim()) return;
+  if (!input) return;
 
   const query = input.value.trim();
-  input.value = "";
+  if (!query) return;
 
+  // Add user message
   assistantChatHistory.push({ sender: "user", text: query });
+  input.value = "";
   renderAssistantChat();
 
-  const sendBtn = document.getElementById("ai-chat-send-btn");
-  if (sendBtn) sendBtn.disabled = true;
+  // Temporary thinking indicator
+  assistantChatHistory.push({ sender: "bot", text: "Analyzing your diary and calculating nutritional telemetry..." });
+  renderAssistantChat();
 
   try {
     const res = await apiCall("/api/assistant/chat", "POST", {
       query: query,
-      date: AppState.currentDate
+      date_str: AppState.currentDate
     });
 
-    assistantChatHistory.push({ sender: "bot", text: res.response });
+    // Replace thinking indicator with actual response
+    assistantChatHistory.pop();
+    assistantChatHistory.push({
+      sender: "bot",
+      text: res.response
+    });
+
     renderAssistantChat();
+    refreshAssistantContextBanner();
   } catch (err) {
-    assistantChatHistory.push({ sender: "bot", text: "Sorry, I encountered an error connecting to the nutrition engine: " + err.message });
+    assistantChatHistory.pop();
+    assistantChatHistory.push({
+      sender: "bot",
+      text: `⚠️ Error fetching coach response: ${err.message}`
+    });
     renderAssistantChat();
-  } finally {
-    if (sendBtn) sendBtn.disabled = false;
   }
+}
+
+function formatChatMarkdown(txt) {
+  let html = txt
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.*?)\*/g, "<em>$1</em>")
+    .replace(/`(.*?)`/g, "<code class='bg-slate-950 px-1 py-0.5 rounded text-brand-400 font-mono text-[11px]'>$1</code>")
+    .replace(/\n\n/g, "<br><br>")
+    .replace(/\n/g, "<br>");
+  return html;
 }
