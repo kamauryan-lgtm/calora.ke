@@ -241,3 +241,18 @@ function formatChatMarkdown(txt) {
     .replace(/\n/g, "<br>");
   return html;
 }
+
+// Global Aliases for HTML buttons & Enter key triggers
+async function sendAssistantMessage() {
+  await handleAssistantSend();
+}
+
+function sendAssistantChip(promptText) {
+  askAssistantPrompt(promptText);
+}
+
+window.sendAssistantMessage = sendAssistantMessage;
+window.sendAssistantChip = sendAssistantChip;
+window.handleAssistantSend = handleAssistantSend;
+window.askAssistantPrompt = askAssistantPrompt;
+

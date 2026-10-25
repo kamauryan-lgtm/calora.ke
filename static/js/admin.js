@@ -7,30 +7,27 @@ let currentAdminSubtab = "overview";
 
 async function loadAdminDashboard() {
   const container = document.getElementById("tab-admin");
+  const mainContent = document.getElementById("admin-main-content");
+  const authGuard = document.getElementById("admin-auth-guard");
   if (!container) return;
 
-  // Strict client-side gate: only admin can view
+  // Gate check: if not admin, show guard card and hide main content
   if (!AppState.user || AppState.user.role !== "admin") {
-    container.innerHTML = `
-      <div class="calora-card p-12 text-center max-w-lg mx-auto space-y-4 my-8">
-        <div class="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center mx-auto">
-          <i data-lucide="shield-alert" class="w-8 h-8"></i>
-        </div>
-        <h2 class="text-xl font-bold text-white">Access Restricted</h2>
-        <p class="text-xs sm:text-sm text-slate-400">
-          This dashboard is reserved exclusively for the <strong>CALORA Platform Administrator</strong>.
-          Your current account is authenticated as <span class="text-brand-400 font-mono">${AppState.user ? AppState.user.email : 'Guest'}</span> (${AppState.user ? AppState.user.role : 'unauthenticated'}).
-        </p>
-        <div class="pt-2">
-          <button onclick="instantDemoLogin('admin')" class="bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition-all">
-            Switch to Admin Demo Account
-          </button>
-        </div>
-      </div>
-    `;
+    if (mainContent) mainContent.classList.add("hidden");
+    if (authGuard) {
+      authGuard.classList.remove("hidden");
+      const userEl = document.getElementById("admin-guard-user-name");
+      if (userEl && AppState.user) {
+        userEl.textContent = `${AppState.user.name} (${AppState.user.role || 'client'})`;
+      }
+    }
     lucide.createIcons();
     return;
   }
+
+  // User is admin: show main content, hide guard
+  if (authGuard) authGuard.classList.add("hidden");
+  if (mainContent) mainContent.classList.remove("hidden");
 
   switchAdminSubtab(currentAdminSubtab);
 }

@@ -164,11 +164,6 @@ function installPWA() {
 
 // Tab Switching
 function switchTab(tabId) {
-  if (tabId === "admin" && AppState.user && AppState.user.role !== "admin") {
-    showToast("Access Restricted: Super-Admin console is reserved for administrators.", "error");
-    tabId = "dashboard";
-  }
-
   AppState.currentTab = tabId;
 
   // Toggle tab contents
@@ -296,6 +291,17 @@ async function handleAuthSubmit(e) {
   }
 }
 
+function handleSignOut() {
+  AppState.token = null;
+  AppState.user = null;
+  AppState.profile = null;
+  localStorage.removeItem("calora_token");
+  closeModal("modal-auth");
+  showToast("Signed out. Starting fresh session.", "info");
+  initializeApp();
+}
+window.handleSignOut = handleSignOut;
+
 function updateUserDisplay() {
   if (AppState.user) {
     const nameEl = document.getElementById("user-display-name");
@@ -306,17 +312,20 @@ function updateUserDisplay() {
     if (avatarEl) avatarEl.textContent = AppState.user.name.charAt(0).toUpperCase();
     if (greetingEl) greetingEl.textContent = AppState.user.name;
 
-    // Show/hide admin tab button (ONLY admin can see)
+    // Admin tab button is always visible so platform manager can access admin dashboard anytime
     const isAdmin = AppState.user.role === "admin";
     const adminBtn = document.getElementById("nav-btn-admin");
     const adminMobBtn = document.getElementById("mob-nav-admin");
     if (adminBtn) {
-      if (isAdmin) adminBtn.classList.remove("hidden");
-      else adminBtn.classList.add("hidden");
+      adminBtn.classList.remove("hidden");
+      if (isAdmin) {
+        adminBtn.className = "nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-purple-200 bg-purple-900/80 border border-purple-400 flex items-center space-x-1.5 shadow-md shadow-purple-500/20";
+      } else {
+        adminBtn.className = "nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-purple-300 bg-purple-950/60 border border-purple-500/40 hover:bg-purple-900/60 flex items-center space-x-1.5 shadow-sm";
+      }
     }
     if (adminMobBtn) {
-      if (isAdmin) adminMobBtn.classList.remove("hidden");
-      else adminMobBtn.classList.add("hidden");
+      adminMobBtn.classList.remove("hidden");
     }
   }
 }

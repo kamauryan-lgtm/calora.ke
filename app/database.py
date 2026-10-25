@@ -855,13 +855,14 @@ def seed_database_defaults():
             VALUES (?, ?, ?, ?, 'Morning weigh-in after waking', ?)
             """, (f"wt_{d_str}", ryan_id, d_str, wt, now_str))
 
-        # Seed realistic meal logs for today (Breakfast already logged: 2 boiled eggs + 1 Nduma + Kenyan tea = ~349 kcal)
-        today_str = date.today().isoformat()
-        meal_id_b = f"meal_{ryan_id}_{today_str}_breakfast"
+        # Seed realistic meal logs for history demonstration (past date: 3 days ago)
+        # Today is left completely clean so the user can log their actual daily meals
+        past_demo_date = (date.today() - timedelta(days=3)).isoformat()
+        meal_id_b = f"meal_{ryan_id}_{past_demo_date}_breakfast"
         cursor.execute("""
         INSERT INTO meals (id, user_id, date, meal_type, created_at)
         VALUES (?, ?, ?, 'breakfast', ?)
-        """, (meal_id_b, ryan_id, today_str, now_str))
+        """, (meal_id_b, ryan_id, past_demo_date, now_str))
 
         cursor.execute("""
         INSERT INTO meal_items (

@@ -151,6 +151,18 @@ def run_tests():
     assert status == 200, f"Expected 200, got {status}: {copy_res}"
     print(f"  [OK] Copied {copy_res.get('items_copied', 0)} meal items from 2026-10-19 into today's diary!")
 
+    # Clean up temporary test meals copied into today so user's today diary remains clean
+    from datetime import date
+    import sqlite3
+    today_str = date.today().isoformat()
+    conn = sqlite3.connect("calora.db")
+    c = conn.cursor()
+    c.execute("DELETE FROM meal_items WHERE meal_id IN (SELECT id FROM meals WHERE user_id = 'user_ryan_001' AND date = ?)", (today_str,))
+    c.execute("DELETE FROM meals WHERE user_id = 'user_ryan_001' AND date = ?", (today_str,))
+    conn.commit()
+    conn.close()
+    print("  [OK] Cleaned up temporary test copied meals from today's diary.")
+
     print("\n==========================================================")
     print("ALL TESTS PASSED! ADMIN, CLIENT, HISTORY & NKP AI ARE 100% OPERATIONAL.")
     print("==========================================================")
