@@ -40,10 +40,13 @@ async function loadFoodSearchResults(query = "") {
       return;
     }
 
+    window._foodSearchCache = window._foodSearchCache || {};
+    foods.forEach(f => window._foodSearchCache[f.id] = f);
+
     container.innerHTML = foods.map(f => {
       const defaultPortion = f.portions && f.portions.length > 0 ? f.portions[0] : null;
       return `
-        <div onclick='selectFoodForConfig(${JSON.stringify(f)})' class="calora-card p-3.5 cursor-pointer hover:border-brand-500/50 transition-all space-y-1.5 ${selectedFood && selectedFood.id === f.id ? 'border-brand-500 bg-slate-900' : ''}">
+        <div onclick="selectFoodForConfigById('${f.id}')" class="calora-card p-3.5 cursor-pointer hover:border-brand-500/50 transition-all space-y-1.5 ${selectedFood && selectedFood.id === f.id ? 'border-brand-500 bg-slate-900' : ''}">
           <div class="flex items-center justify-between">
             <span class="text-sm font-bold text-white">${f.name}</span>
             <span class="text-xs font-mono font-bold text-brand-400">${Math.round(f.calories_per_100g)} kcal <span class="text-[10px] text-slate-500 font-normal">/100g</span></span>
@@ -73,6 +76,12 @@ async function loadFoodSearchResults(query = "") {
     container.innerHTML = `<div class="p-4 text-xs text-red-400">Search error: ${err.message}</div>`;
   }
 }
+
+function selectFoodForConfigById(id) {
+  const food = window._foodSearchCache?.[id];
+  if (food) selectFoodForConfig(food);
+}
+window.selectFoodForConfigById = selectFoodForConfigById;
 
 let searchDebounceTimeout = null;
 function onSearchInput(val) {
@@ -118,7 +127,7 @@ function renderFoodConfigPanel() {
 
   // Portion radio buttons
   const portionButtonsHtml = (selectedFood.portions || []).map((p, idx) => `
-    <button onclick="setFoodPortion('${p.name}', ${p.gram_weight})" class="portion-btn text-left p-3 rounded-xl border transition-all text-xs space-y-0.5 ${currentPortion && currentPortion.name === p.name ? 'bg-slate-800 border-brand-500 text-brand-300 font-bold' : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-600'}">
+    <button onclick="setFoodPortionByIndex(${idx})" class="portion-btn text-left p-3 rounded-xl border transition-all text-xs space-y-0.5 ${currentPortion && currentPortion.name === p.name ? 'bg-slate-800 border-brand-500 text-brand-300 font-bold' : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-600'}">
       <div class="flex items-center justify-between">
         <span>${p.name}</span>
         <strong class="font-mono text-white">${p.gram_weight}g</strong>
@@ -247,6 +256,14 @@ function setFoodPortion(name, grams) {
   currentGrams = grams;
   renderFoodConfigPanel();
 }
+
+function setFoodPortionByIndex(idx) {
+  if (selectedFood && selectedFood.portions && selectedFood.portions[idx]) {
+    const p = selectedFood.portions[idx];
+    setFoodPortion(p.name, p.gram_weight);
+  }
+}
+window.setFoodPortionByIndex = setFoodPortionByIndex;
 
 function setCustomGrams(grams) {
   currentGrams = parseFloat(grams) || 100;
@@ -439,25 +456,32 @@ async function submitNlpParse() {
 
         ${clarificationsHtml}
 
-        <button onclick='commitNlpItems(${JSON.stringify(res.items)})' class="w-full bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center space-x-2">
+        <button onclick="commitLastNlpItems()" class="w-full bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center space-x-2">
           <i data-lucide="check" class="w-4 h-4"></i>
           <span>Confirm & Log All Items to Diary</span>
         </button>
       </div>
     `;
 
+    window._lastNlpParsedItems = res.items;
     lucide.createIcons();
   } catch (err) {
     container.innerHTML = `<div class="p-4 text-xs text-red-400">Error: ${err.message}</div>`;
   }
 }
 
+async function commitLastNlpItems() {
+  await commitNlpItems(window._lastNlpParsedItems);
+}
+window.commitLastNlpItems = commitLastNlpItems;
+
 async function commitNlpItems(items) {
+  const itemsToCommit = items || window._lastNlpParsedItems || [];
   const mealTypeSelect = document.getElementById("nlp-meal-type-select");
   const mealType = mealTypeSelect ? mealTypeSelect.value : "lunch";
 
   try {
-    for (const item of items) {
+    for (const item of itemsToCommit) {
       await apiCall("/api/meals/item", "POST", {
         date: AppState.currentDate,
         meal_type: mealType,
@@ -587,13 +611,14 @@ async function triggerSimulatedPhotoScan(hint = "ugali") {
           ${res.disclaimer}
         </div>
 
-        <button onclick='commitNlpItems(${JSON.stringify(res.items)})' class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center space-x-2 shadow-md shadow-emerald-500/20">
+        <button onclick="commitLastNlpItems()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center space-x-2 shadow-md shadow-emerald-500/20">
           <i data-lucide="check" class="w-4 h-4"></i>
           <span>Confirm & Log Plate to Diary</span>
         </button>
       </div>
     `;
 
+    window._lastNlpParsedItems = res.items;
     lucide.createIcons();
   } catch (err) {
     container.innerHTML = `<div class="p-4 text-xs text-red-400">Error: ${err.message}</div>`;
@@ -630,56 +655,84 @@ async function lookupBarcode() {
   try {
     const food = await apiCall(`/api/foods/barcode/${barcode}`);
 
+    const hasImg = food.image_url && food.image_url.startsWith("http");
+    const brandStr = food.brand ? `<span class="text-xs text-brand-400 font-semibold block">${food.brand}</span>` : "";
+    const packStr = food.packaging ? `<span class="text-[10px] text-slate-400 block">${food.packaging}</span>` : "";
+
     container.innerHTML = `
       <div class="calora-card p-6 space-y-4 border-slate-800">
-        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-          <div>
-            <h3 class="text-base font-bold text-white">${food.name}</h3>
-            <span class="text-xs text-slate-400 font-mono">Barcode: ${food.barcode} · ${food.category}</span>
+        <div class="flex items-start justify-between border-b border-slate-800 pb-3 gap-3">
+          <div class="flex items-center space-x-3">
+            ${hasImg ? `
+              <img src="${food.image_url}" alt="${food.name}" class="w-14 h-14 object-contain rounded-xl bg-slate-900 border border-slate-700 p-1">
+            ` : `
+              <div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
+                <i data-lucide="package" class="w-6 h-6"></i>
+              </div>
+            `}
+            <div>
+              ${brandStr}
+              <h3 class="text-base font-bold text-white">${food.name}</h3>
+              <span class="text-xs text-slate-400 font-mono">Barcode: ${food.barcode} · ${food.category}</span>
+              ${packStr}
+            </div>
           </div>
-          <span class="badge-high text-xs px-2.5 py-0.5 rounded-full font-bold">100% Verified Match</span>
+          <span class="badge-high text-xs px-2.5 py-0.5 rounded-full font-bold whitespace-nowrap">Verified Product</span>
         </div>
 
         <div class="grid grid-cols-4 gap-2 text-center text-xs">
           <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
             <span class="text-slate-400 block text-[10px]">Calories</span>
             <strong class="text-emerald-400 text-sm font-mono">${Math.round(food.calories_per_100g)} kcal</strong>
+            <span class="text-[9px] text-slate-500 block">per 100g</span>
           </div>
           <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
             <span class="text-slate-400 block text-[10px]">Protein</span>
             <strong class="text-white text-sm font-mono">${food.protein_per_100g}g</strong>
+            <span class="text-[9px] text-slate-500 block">per 100g</span>
           </div>
           <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
             <span class="text-slate-400 block text-[10px]">Carbs</span>
             <strong class="text-white text-sm font-mono">${food.carbs_per_100g}g</strong>
+            <span class="text-[9px] text-slate-500 block">per 100g</span>
           </div>
           <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
             <span class="text-slate-400 block text-[10px]">Fat</span>
             <strong class="text-white text-sm font-mono">${food.fat_per_100g}g</strong>
+            <span class="text-[9px] text-slate-500 block">per 100g</span>
           </div>
         </div>
 
-        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[11px] text-slate-400">
-          <strong>Source:</strong> ${food.source} (${food.source_date})
+        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[11px] text-slate-400 flex justify-between items-center">
+          <div><strong>Source:</strong> ${food.source || 'Open Food Facts Database'}</div>
+          ${food.serving_size ? `<span class="text-slate-400 font-mono">Serving: ${food.serving_size}</span>` : ''}
         </div>
 
-        <button onclick='selectFoodForConfig(${JSON.stringify(food)}); switchLogMode("search");' class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center space-x-1.5 shadow-md shadow-emerald-500/20">
+        <button onclick="selectLastScannedBarcodeFood(); switchLogMode('search');" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center space-x-1.5 shadow-md shadow-emerald-500/20">
           <i data-lucide="check" class="w-4 h-4"></i>
           <span>Configure Portion & Add to Diary</span>
         </button>
       </div>
     `;
 
+    window._lastScannedBarcodeFood = food;
     lucide.createIcons();
   } catch (err) {
     container.innerHTML = `
       <div class="calora-card p-6 text-center text-amber-300 text-xs bg-amber-500/10 border-amber-500/20 space-y-2">
-        <p>Barcode ${barcode} not found in verified database.</p>
+        <p>Barcode ${barcode} not found in verified database or Open Food Facts.</p>
         <button onclick="openCustomFoodModal()" class="text-emerald-400 font-semibold hover:underline">Submit this product as a new verified food</button>
       </div>
     `;
   }
 }
+
+function selectLastScannedBarcodeFood() {
+  if (window._lastScannedBarcodeFood) {
+    selectFoodForConfig(window._lastScannedBarcodeFood);
+  }
+}
+window.selectLastScannedBarcodeFood = selectLastScannedBarcodeFood;
 
 function startLiveCameraBarcode() {
   const container = document.getElementById("barcode-result-container");

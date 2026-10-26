@@ -96,6 +96,13 @@ class AssistantChatRequest(BaseModel):
     query: str
     date: Optional[str] = None
     date_str: Optional[str] = None
+    image_data: Optional[str] = None
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
 
 
 class FoodReportRequest(BaseModel):
@@ -312,5 +319,18 @@ class AdminUpdateFoodRequest(BaseModel):
 class CopyMealToTodayRequest(BaseModel):
     source_date: str
     meal_type: Optional[str] = None  # None for all meals, or specific meal_type
+
+
+class AdminCreateExerciseRequest(BaseModel):
+    name: str = Field(..., min_length=2)
+    muscle_group: str
+    secondary_muscles: Optional[str] = None
+    equipment: str = "Bodyweight"
+    difficulty: str = "Beginner"
+    movement_pattern: str = "Compound"
+    form_cues: str = "Maintain neutral spine and controlled tempo."
+    safety_tips: str = "Breathe steadily and do not lock joints under load."
+    kenyan_context: Optional[str] = None
+
 
 

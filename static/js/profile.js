@@ -210,7 +210,43 @@ async function saveProfileSettings(event) {
   }
 }
 
+async function handleProfilePasswordChange(event) {
+  if (event) event.preventDefault();
+
+  const currPass = document.getElementById("prof-curr-pass")?.value || "";
+  const newPass = document.getElementById("prof-new-pass")?.value || "";
+  const confirmPass = document.getElementById("prof-confirm-pass")?.value || "";
+
+  if (!currPass) {
+    showToast("Please enter your current password.", "error");
+    return;
+  }
+  if (newPass.length < 6) {
+    showToast("New password must be at least 6 characters.", "error");
+    return;
+  }
+  if (newPass !== confirmPass) {
+    showToast("New password and confirmation do not match.", "error");
+    return;
+  }
+
+  try {
+    const res = await apiCall("/api/auth/change-password", "POST", {
+      current_password: currPass,
+      new_password: newPass
+    });
+
+    showToast("Password updated successfully!", "success");
+    document.getElementById("prof-curr-pass").value = "";
+    document.getElementById("prof-new-pass").value = "";
+    document.getElementById("prof-confirm-pass").value = "";
+  } catch (err) {
+    showToast(err.message, "error");
+  }
+}
+
 // Global window mappings
 window.loadProfileForm = loadProfileForm;
 window.recalculateProfilePreview = recalculateProfilePreview;
 window.saveProfileSettings = saveProfileSettings;
+window.handleProfilePasswordChange = handleProfilePasswordChange;

@@ -12,9 +12,13 @@ const ASSETS_TO_CACHE = [
   "/static/js/app.js",
   "/static/js/dashboard.js",
   "/static/js/food_log.js",
+  "/static/js/history.js",
   "/static/js/recipes.js",
   "/static/js/progress.js",
+  "/static/js/profile.js",
   "/static/js/assistant.js",
+  "/static/js/wellness_workouts.js",
+  "/static/js/gym_partner.js",
   "/static/js/admin.js",
   "/static/offline.html"
 ];

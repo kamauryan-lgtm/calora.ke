@@ -91,6 +91,25 @@ function openQuickAddModal() {
 }
 
 // ----------------------------------------------------
+// SHOW / HIDE PASSWORD TOGGLE HELPER
+// ----------------------------------------------------
+function togglePasswordVisibility(inputId, toggleBtnId) {
+  const input = document.getElementById(inputId);
+  const btn = document.getElementById(toggleBtnId);
+  if (!input) return;
+
+  const isPassword = input.type === "password";
+  input.type = isPassword ? "text" : "password";
+  if (btn) {
+    btn.innerHTML = isPassword 
+      ? '<i data-lucide="eye-off" class="w-4 h-4 text-brand-400"></i>'
+      : '<i data-lucide="eye" class="w-4 h-4 text-slate-400"></i>';
+    lucide.createIcons();
+  }
+}
+window.togglePasswordVisibility = togglePasswordVisibility;
+
+// ----------------------------------------------------
 // THEME SWITCHER (Dark / Light Mode)
 // ----------------------------------------------------
 function initTheme() {
@@ -126,7 +145,8 @@ function applyTheme(theme) {
 // ----------------------------------------------------
 function registerServiceWorker() {
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/static/sw.js")
+    navigator.serviceWorker.register("/sw.js")
+      .catch(() => navigator.serviceWorker.register("/static/sw.js"))
       .then(() => console.log("CALORA PWA Service Worker Registered"))
       .catch((err) => console.warn("SW registration failed:", err));
   }
@@ -162,8 +182,19 @@ function installPWA() {
   }
 }
 
-// Tab Switching
+// ----------------------------------------------------
+// TAB SWITCHING & ACCESS CONTROL
+// ----------------------------------------------------
 function switchTab(tabId) {
+  // Enforce strict admin access: Only admin can see and enter the admin dashboard
+  if (tabId === "admin") {
+    if (!AppState.user || AppState.user.role !== "admin") {
+      showToast("Admin access restricted. Please authenticate with administrator password.", "error");
+      openAdminAuthModal();
+      return;
+    }
+  }
+
   AppState.currentTab = tabId;
 
   // Toggle tab contents
@@ -250,8 +281,16 @@ function onDateChanged() {
   if (val) setDate(val);
 }
 
-// Authentication
+// ----------------------------------------------------
+// AUTHENTICATION & ADMIN PORTAL
+// ----------------------------------------------------
 async function instantDemoLogin(role = "user", reload = true) {
+  // Prevent demo login into admin
+  if (role === "admin") {
+    openAdminAuthModal();
+    return;
+  }
+
   try {
     const res = await apiCall(`/api/auth/demo-login?role=${role}`, "POST");
     AppState.token = res.token;
@@ -263,8 +302,7 @@ async function instantDemoLogin(role = "user", reload = true) {
     showToast(`Signed in as ${res.user.name} (${role})`, "success");
 
     if (reload) {
-      if (role === "admin") switchTab("admin");
-      else if (role === "gym_owner") switchTab("gyms");
+      if (role === "gym_owner") switchTab("gyms");
       else switchTab("dashboard");
     }
   } catch (err) {
@@ -285,11 +323,46 @@ async function handleAuthSubmit(e) {
     closeModal("modal-auth");
     updateUserDisplay();
     showToast(`Welcome back, ${res.user.name}!`, "success");
-    switchTab("dashboard");
+
+    if (res.user.role === "admin") {
+      switchTab("admin");
+    } else {
+      switchTab("dashboard");
+    }
   } catch (err) {
     showToast(err.message, "error");
   }
 }
+
+function openAdminAuthModal() {
+  closeModal("modal-auth");
+  openModal("modal-admin-auth");
+}
+window.openAdminAuthModal = openAdminAuthModal;
+
+async function handleAdminAuthSubmit(e) {
+  e.preventDefault();
+  const email = document.getElementById("admin-auth-email").value.trim();
+  const password = document.getElementById("admin-auth-password").value;
+
+  try {
+    const res = await apiCall("/api/auth/login", "POST", { email, password });
+    if (res.user.role !== "admin") {
+      throw new Error("This account does not have platform administrator access.");
+    }
+
+    AppState.token = res.token;
+    AppState.user = res.user;
+    localStorage.setItem("calora_token", res.token);
+    closeModal("modal-admin-auth");
+    updateUserDisplay();
+    showToast(`Authenticated as Administrator (${res.user.name})`, "success");
+    switchTab("admin");
+  } catch (err) {
+    showToast(err.message, "error");
+  }
+}
+window.handleAdminAuthSubmit = handleAdminAuthSubmit;
 
 function handleSignOut() {
   AppState.token = null;
@@ -297,7 +370,8 @@ function handleSignOut() {
   AppState.profile = null;
   localStorage.removeItem("calora_token");
   closeModal("modal-auth");
-  showToast("Signed out. Starting fresh session.", "info");
+  closeModal("modal-admin-auth");
+  showToast("Signed out successfully.", "info");
   initializeApp();
 }
 window.handleSignOut = handleSignOut;
@@ -312,31 +386,196 @@ function updateUserDisplay() {
     if (avatarEl) avatarEl.textContent = AppState.user.name.charAt(0).toUpperCase();
     if (greetingEl) greetingEl.textContent = AppState.user.name;
 
-    // Admin tab button is always visible so platform manager can access admin dashboard anytime
+    // Strict Admin Visibility: Admin tab is ONLY visible to authenticated admins!
     const isAdmin = AppState.user.role === "admin";
     const adminBtn = document.getElementById("nav-btn-admin");
     const adminMobBtn = document.getElementById("mob-nav-admin");
     if (adminBtn) {
-      adminBtn.classList.remove("hidden");
       if (isAdmin) {
+        adminBtn.classList.remove("hidden");
         adminBtn.className = "nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-purple-200 bg-purple-900/80 border border-purple-400 flex items-center space-x-1.5 shadow-md shadow-purple-500/20";
       } else {
-        adminBtn.className = "nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all text-purple-300 bg-purple-950/60 border border-purple-500/40 hover:bg-purple-900/60 flex items-center space-x-1.5 shadow-sm";
+        adminBtn.classList.add("hidden");
       }
     }
     if (adminMobBtn) {
-      adminMobBtn.classList.remove("hidden");
+      if (isAdmin) {
+        adminMobBtn.classList.remove("hidden");
+      } else {
+        adminMobBtn.classList.add("hidden");
+      }
     }
+  } else {
+    const adminBtn = document.getElementById("nav-btn-admin");
+    const adminMobBtn = document.getElementById("mob-nav-admin");
+    if (adminBtn) adminBtn.classList.add("hidden");
+    if (adminMobBtn) adminMobBtn.classList.add("hidden");
   }
 }
 
-// App Initialization
+// ----------------------------------------------------
+// FIRST-TIME USER ONBOARDING WIZARD
+// ----------------------------------------------------
+let currentOnboardingStep = 1;
+
+function openOnboardingModal() {
+  currentOnboardingStep = 1;
+  setOnboardingStep(1);
+  openModal("modal-onboarding");
+}
+window.openOnboardingModal = openOnboardingModal;
+
+function closeOnboardingModal() {
+  localStorage.setItem("calora_onboarding_dismissed", "true");
+  closeModal("modal-onboarding");
+}
+window.closeOnboardingModal = closeOnboardingModal;
+
+function setOnboardingStep(step) {
+  currentOnboardingStep = step;
+  document.querySelectorAll("[id^='onboard-step-']").forEach(el => el.classList.add("hidden"));
+  const target = document.getElementById(`onboard-step-${step}`);
+  if (target) target.classList.remove("hidden");
+
+  const progress = document.getElementById("onboard-progress-bar");
+  if (progress) {
+    progress.style.width = step === 1 ? "33%" : (step === 2 ? "66%" : "100%");
+  }
+  const badge = document.getElementById("onboard-step-badge");
+  if (badge) badge.textContent = `Step ${step} of 3`;
+
+  if (step === 3) {
+    recalculateOnboardingPreview();
+  }
+  lucide.createIcons();
+}
+window.setOnboardingStep = setOnboardingStep;
+
+function recalculateOnboardingPreview() {
+  const age = parseFloat(document.getElementById("onboard-age")?.value) || 24;
+  const sex = document.getElementById("onboard-sex")?.value || "male";
+  const height = parseFloat(document.getElementById("onboard-height")?.value) || 175;
+  const weight = parseFloat(document.getElementById("onboard-weight")?.value) || 80;
+  const activity = document.getElementById("onboard-activity")?.value || "moderately_active";
+  const goal = document.getElementById("onboard-goal")?.value || "lose";
+
+  // Mifflin-St Jeor formula
+  const sexConstant = sex === "male" ? 5 : -161;
+  const bmr = Math.round((10 * weight) + (6.25 * height) - (5 * age) + sexConstant);
+
+  const multipliers = {
+    sedentary: 1.20,
+    lightly_active: 1.375,
+    moderately_active: 1.55,
+    very_active: 1.725
+  };
+  const tdee = Math.round(bmr * (multipliers[activity] || 1.55));
+  let target = tdee;
+  if (goal === "lose") target = Math.max(sex === "male" ? 1500 : 1200, tdee - 500);
+  else if (goal === "gain") target = tdee + 350;
+
+  const proteinG = Math.round(weight * 2.0);
+
+  const prevEl = document.getElementById("onboard-preview-summary");
+  if (prevEl) {
+    prevEl.innerHTML = `
+      <div class="flex justify-between items-center text-xs text-slate-300">
+        <span>BMR (Basal Rate):</span>
+        <strong class="font-mono text-white">${bmr} kcal</strong>
+      </div>
+      <div class="flex justify-between items-center text-xs text-slate-300">
+        <span>TDEE (Daily Burn):</span>
+        <strong class="font-mono text-emerald-400">${tdee} kcal</strong>
+      </div>
+      <div class="flex justify-between items-center text-xs text-slate-300">
+        <span>Target Daily Intake:</span>
+        <strong class="font-mono text-brand-400 text-sm">${target} kcal/day</strong>
+      </div>
+      <div class="flex justify-between items-center text-xs text-slate-300">
+        <span>Target Protein:</span>
+        <strong class="font-mono text-white">${proteinG}g/day (2.0g/kg)</strong>
+      </div>
+    `;
+  }
+}
+window.recalculateOnboardingPreview = recalculateOnboardingPreview;
+
+async function handleOnboardingSubmit(e) {
+  e.preventDefault();
+  const name = document.getElementById("onboard-name").value.trim();
+  const sex = document.getElementById("onboard-sex").value;
+  const goal = document.getElementById("onboard-goal").value;
+  const age = parseInt(document.getElementById("onboard-age").value) || 24;
+  const height_cm = parseFloat(document.getElementById("onboard-height").value) || 175;
+  const current_weight_kg = parseFloat(document.getElementById("onboard-weight").value) || 80;
+  const goal_weight_kg = parseFloat(document.getElementById("onboard-goal-weight").value) || 72;
+  const activity_level = document.getElementById("onboard-activity").value;
+  const email = document.getElementById("onboard-email").value.trim();
+  const password = document.getElementById("onboard-password").value;
+
+  if (!name || !email || !password) {
+    showToast("Please fill in your name, email, and password.", "error");
+    return;
+  }
+
+  const payload = {
+    name,
+    email,
+    password,
+    age,
+    sex,
+    height_cm,
+    current_weight_kg,
+    goal_weight_kg,
+    activity_level,
+    primary_goal: goal,
+    deficit_tier: "moderate",
+    measurement_system: "metric"
+  };
+
+  try {
+    const res = await apiCall("/api/auth/register", "POST", payload);
+    AppState.token = res.token;
+    AppState.user = res.user;
+    localStorage.setItem("calora_token", res.token);
+    localStorage.setItem("calora_has_account", "true");
+
+    closeModal("modal-onboarding");
+    updateUserDisplay();
+    showToast(`Welcome to CALORA, ${res.user.name}! Your account is active.`, "success");
+
+    // Fetch full profile and refresh dashboard
+    const me = await apiCall("/api/auth/me");
+    AppState.user = me.user;
+    AppState.profile = me.profile;
+
+    switchTab("dashboard");
+  } catch (err) {
+    showToast(err.message, "error");
+  }
+}
+window.handleOnboardingSubmit = handleOnboardingSubmit;
+
+// ----------------------------------------------------
+// APP INITIALIZATION
+// ----------------------------------------------------
 async function initializeApp() {
   initTheme();
   registerServiceWorker();
 
   const picker = document.getElementById("current-date-picker");
   if (picker) picker.value = AppState.currentDate;
+
+  // Check if visitor has account
+  const storedToken = localStorage.getItem("calora_token");
+  const dismissedOnboarding = localStorage.getItem("calora_onboarding_dismissed");
+
+  if (!storedToken && !dismissedOnboarding) {
+    // Show Onboarding wizard to new visitor
+    setTimeout(() => {
+      openOnboardingModal();
+    }, 400);
+  }
 
   try {
     if (!AppState.token) {
@@ -347,7 +586,7 @@ async function initializeApp() {
     AppState.profile = me.profile;
     updateUserDisplay();
   } catch (err) {
-    console.warn("Session check failed, falling back to demo Ryan:", err);
+    console.warn("Session check failed, falling back to demo session:", err);
     await instantDemoLogin("user", false);
   }
 

@@ -31,6 +31,9 @@ def build():
         else:
             shutil.copy2(s, d)
 
+    # Keep root index.html synchronized with Calora's static/index.html
+    shutil.copy2(os.path.join(static_dir, "index.html"), os.path.join(root_dir, "index.html"))
+
     # 2. Also create a nested dist/static directory so that assets linked via
     #    /static/... continue to work without relying on URL rewrites
     nested_static = os.path.join(dist_dir, "static")

@@ -6,6 +6,7 @@ Philosophy: Accuracy over assumptions.
 import os
 import json
 import secrets
+import urllib.request
 from datetime import datetime, date, timedelta
 from typing import Optional, List, Dict, Any
 
@@ -37,7 +38,8 @@ from app.models import (
     GymRegisterRequest, GymBrandingUpdateRequest, GymPackageCreateRequest, GymPackageOrderRequest,
     GymSubscribeRequest, AdminUpdatePlanRequest, GymInviteRequest, MemberConsentUpdateRequest,
     InitiatePaymentRequest, PaymentCallbackRequest, SendTestEmailRequest,
-    AdminUpdateUserRoleRequest, AdminCreateFoodRequest, AdminUpdateFoodRequest, CopyMealToTodayRequest
+    AdminUpdateUserRoleRequest, AdminCreateFoodRequest, AdminUpdateFoodRequest, CopyMealToTodayRequest,
+    ChangePasswordRequest, AdminCreateExerciseRequest
 )
 
 # Initialize database tables and default seed data on startup
@@ -197,6 +199,24 @@ def get_me(user: Dict[str, Any] = Depends(get_current_user)):
     }
 
 
+@app.post("/api/auth/change-password")
+def change_user_password(req: ChangePasswordRequest, user: Dict[str, Any] = Depends(get_current_user)):
+    if len(req.new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters long")
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT password_hash FROM users WHERE id = ?", (user["id"],))
+    u = cursor.fetchone()
+    if not u or not verify_password(u["password_hash"], req.current_password):
+        conn.close()
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    new_hash = hash_password(req.new_password)
+    cursor.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user["id"]))
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": "Password updated successfully"}
+
+
 # ==========================================
 # 2. PROFILE & CALCULATION ENGINE
 # ==========================================
@@ -335,21 +355,89 @@ def get_categories():
 
 @app.get("/api/foods/barcode/{barcode}")
 def get_food_by_barcode(barcode: str):
+    code = barcode.strip()
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM food_items WHERE barcode = ?", (barcode.strip(),))
+    cursor.execute("SELECT * FROM food_items WHERE barcode = ?", (code,))
     food_row = cursor.fetchone()
 
-    if not food_row:
+    if food_row:
+        food = dict(food_row)
+        cursor.execute("SELECT * FROM food_portions WHERE food_id = ? ORDER BY is_default DESC", (food["id"],))
+        food["portions"] = [dict(p) for p in cursor.fetchall()]
         conn.close()
-        raise HTTPException(status_code=404, detail="Barcode not found in verified database")
+        return food
 
-    food = dict(food_row)
-    cursor.execute("SELECT * FROM food_portions WHERE food_id = ? ORDER BY is_default DESC", (food["id"],))
-    food["portions"] = [dict(p) for p in cursor.fetchall()]
+    # Fallback to Open Food Facts API
+    try:
+        url = f"https://world.openfoodfacts.org/api/v2/product/{code}.json"
+        req = urllib.request.Request(url, headers={"User-Agent": "CALORA-Nutrition/1.0 (contact@calora.app)"})
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            if data.get("status") == 1 and "product" in data:
+                p = data["product"]
+                product_name = p.get("product_name") or p.get("product_name_en") or f"Packaged Food ({code})"
+                brand = p.get("brands") or "Verified Manufacturer"
+                cat = p.get("categories", "").split(",")[0].strip() or "Packaged Foods"
+                image_url = p.get("image_front_url") or p.get("image_url")
+
+                nutr = p.get("nutriments", {})
+                cal_val = nutr.get("energy-kcal_100g") or nutr.get("energy-kcal")
+                if cal_val is None and nutr.get("energy_100g"):
+                    try:
+                        cal_val = float(nutr.get("energy_100g")) / 4.184
+                    except Exception:
+                        cal_val = 0.0
+                cal_100 = float(cal_val or 0.0)
+                prot_100 = float(nutr.get("proteins_100g") or nutr.get("proteins") or 0.0)
+                carbs_100 = float(nutr.get("carbohydrates_100g") or nutr.get("carbohydrates") or 0.0)
+                fat_100 = float(nutr.get("fat_100g") or nutr.get("fat") or 0.0)
+                fibre_100 = float(nutr.get("fiber_100g") or nutr.get("fiber") or 0.0)
+
+                new_food_id = f"food_off_{code}"
+                now_str = datetime.now().isoformat()
+                cursor.execute("""
+                INSERT OR REPLACE INTO food_items (
+                    id, name, common_names, category, cuisine, barcode,
+                    calories_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g, fibre_per_100g,
+                    cooking_oil_default, default_prep_method, is_verified, source_id, image_url, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, 'International / Commercial', ?, ?, ?, ?, ?, ?, 'none', 'packaged', 1, 'src_usda', ?, ?, ?)
+                """, (
+                    new_food_id, f"{product_name} ({brand})", brand, cat, code,
+                    round(cal_100, 1), round(prot_100, 1), round(carbs_100, 1), round(fat_100, 1), round(fibre_100, 1),
+                    image_url, now_str, now_str
+                ))
+
+                cursor.execute("""
+                INSERT OR REPLACE INTO food_portions (food_id, name, gram_weight, description, is_default)
+                VALUES (?, 'Standard 100g Portion', 100.0, 'Standard 100g serving', 1)
+                """, (new_food_id,))
+
+                serving_qty = p.get("serving_quantity")
+                if serving_qty:
+                    try:
+                        sq_float = float(serving_qty)
+                        if sq_float > 0 and sq_float != 100.0:
+                            cursor.execute("""
+                            INSERT OR REPLACE INTO food_portions (food_id, name, gram_weight, description, is_default)
+                            VALUES (?, '1 Package Serving', ?, ?, 0)
+                            """, (new_food_id, sq_float, p.get("serving_size") or f"{sq_float}g package serving"))
+                    except Exception:
+                        pass
+
+                conn.commit()
+
+                cursor.execute("SELECT * FROM food_items WHERE id = ?", (new_food_id,))
+                fresh_food = dict(cursor.fetchone())
+                cursor.execute("SELECT * FROM food_portions WHERE food_id = ? ORDER BY is_default DESC", (new_food_id,))
+                fresh_food["portions"] = [dict(pr) for pr in cursor.fetchall()]
+                conn.close()
+                return fresh_food
+    except Exception as e:
+        print("Open Food Facts fetch exception:", e)
+
     conn.close()
-
-    return food
+    raise HTTPException(status_code=404, detail=f"Barcode {code} not found in verified database or Open Food Facts")
 
 
 @app.get("/api/foods/{food_id}")
@@ -1074,7 +1162,22 @@ def get_weekly_analysis(user: Dict[str, Any] = Depends(get_current_user)):
 @app.post("/api/assistant/chat")
 def assistant_chat(req: AssistantChatRequest, user: Dict[str, Any] = Depends(get_current_user)):
     target_date = req.date or req.date_str or date.today().isoformat()
-    return handle_assistant_query(req.query, user["id"], target_date)
+    return handle_assistant_query(req.query, user["id"], target_date, req.image_data)
+
+
+@app.get("/api/assistant/history")
+def get_assistant_history(user: Dict[str, Any] = Depends(get_current_user)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT id, user_id, date, sender, message, image_data, created_at
+    FROM user_coach_memories
+    WHERE user_id = ?
+    ORDER BY created_at ASC LIMIT 50
+    """, (user["id"],))
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return {"history": rows}
 
 
 @app.get("/api/assistant/recommendations")
@@ -2666,6 +2769,90 @@ def get_audit_logs(limit: int = Query(50), admin: Dict[str, Any] = Depends(get_c
     logs = [dict(r) for r in cursor.fetchall()]
     conn.close()
     return logs
+
+
+@app.get("/api/admin/exercises")
+def list_admin_exercises(
+    muscle_group: Optional[str] = Query(None),
+    equipment: Optional[str] = Query(None),
+    difficulty: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    admin: Dict[str, Any] = Depends(get_current_admin_user)
+):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    query = "SELECT * FROM exercises WHERE 1=1"
+    params = []
+    if muscle_group and muscle_group != "all":
+        query += " AND LOWER(muscle_group) = LOWER(?)"
+        params.append(muscle_group)
+    if equipment and equipment != "all":
+        query += " AND LOWER(equipment) = LOWER(?)"
+        params.append(equipment)
+    if difficulty and difficulty != "all":
+        query += " AND LOWER(difficulty) = LOWER(?)"
+        params.append(difficulty)
+    if search:
+        query += " AND (name LIKE ? OR form_cues LIKE ? OR kenyan_context LIKE ? OR muscle_group LIKE ?)"
+        s = f"%{search}%"
+        params.extend([s, s, s, s])
+    query += " ORDER BY muscle_group, name"
+    cursor.execute(query, params)
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows
+
+
+@app.post("/api/admin/exercises")
+def create_admin_exercise(req: AdminCreateExerciseRequest, admin: Dict[str, Any] = Depends(get_current_admin_user)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    now_str = datetime.now().isoformat()
+    ex_id = f"ex_{secrets.token_hex(5)}"
+
+    cursor.execute("""
+    INSERT INTO exercises (
+        id, name, muscle_group, secondary_muscles, equipment, difficulty,
+        movement_pattern, form_cues, safety_tips, kenyan_context, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        ex_id, req.name.strip(), req.muscle_group.strip(), req.secondary_muscles,
+        req.equipment.strip(), req.difficulty.strip(), req.movement_pattern.strip(),
+        req.form_cues.strip(), req.safety_tips.strip(), req.kenyan_context, now_str
+    ))
+
+    cursor.execute("""
+    INSERT INTO audit_logs (id, admin_user_id, action, target_entity, target_id, details, created_at)
+    VALUES (?, ?, 'EXERCISE_CREATED', 'exercises', ?, ?, ?)
+    """, (f"audit_{secrets.token_hex(4)}", admin["id"], ex_id, f"Created exercise '{req.name.strip()}' ({req.muscle_group})", now_str))
+
+    conn.commit()
+    conn.close()
+    return {"status": "success", "id": ex_id, "name": req.name.strip(), "message": f"Created exercise {req.name.strip()}"}
+
+
+@app.delete("/api/admin/exercises/{exercise_id}")
+def delete_admin_exercise(exercise_id: str, admin: Dict[str, Any] = Depends(get_current_admin_user)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM exercises WHERE id = ?", (exercise_id,))
+    target = cursor.fetchone()
+    if not target:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Exercise not found")
+
+    ex_name = target["name"]
+    cursor.execute("DELETE FROM exercises WHERE id = ?", (exercise_id,))
+
+    now_str = datetime.now().isoformat()
+    cursor.execute("""
+    INSERT INTO audit_logs (id, admin_user_id, action, target_entity, target_id, details, created_at)
+    VALUES (?, ?, 'EXERCISE_DELETED', 'exercises', ?, ?, ?)
+    """, (f"audit_{secrets.token_hex(4)}", admin["id"], exercise_id, f"Deleted exercise '{ex_name}'", now_str))
+
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": f"Deleted exercise {ex_name}"}
 
 
 # ==========================================

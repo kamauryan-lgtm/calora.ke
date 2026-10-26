@@ -57,6 +57,7 @@ function switchAdminSubtab(subtab) {
   else if (subtab === "revenue") loadAdminRevenueLedger();
   else if (subtab === "reports") loadAdminReports();
   else if (subtab === "audit") loadAdminAuditTrail();
+  else if (subtab === "exercises") loadAdminExerciseDatabase();
 
   lucide.createIcons();
 }
@@ -179,7 +180,7 @@ async function loadAdminFoodDatabase() {
                   <button onclick="openEditFoodModal('${f.id}')" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs" title="Edit Nutrients">
                     <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
                   </button>
-                  <button onclick="handleDeleteFood('${f.id}', '${f.name.replace(/'/g, "\\'")}')" class="p-1.5 bg-red-950/60 hover:bg-red-900 text-red-300 border border-red-800/50 rounded-lg text-xs" title="Delete Food Item">
+                  <button onclick="handleDeleteFood('${f.id}')" class="p-1.5 bg-red-950/60 hover:bg-red-900 text-red-300 border border-red-800/50 rounded-lg text-xs" title="Delete Food Item">
                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                   </button>
                 </td>
@@ -281,11 +282,13 @@ async function handleUpdateFoodSubmit(e) {
 }
 
 async function handleDeleteFood(foodId, foodName) {
-  if (!confirm(`Are you sure you want to permanently delete "${foodName}" from the nutritional database?`)) return;
+  const item = (adminFoodsList || []).find(f => f.id === foodId);
+  const name = foodName || (item ? item.name : "this food item");
+  if (!confirm(`Are you sure you want to permanently delete "${name}" from the nutritional database?`)) return;
 
   try {
     await apiCall(`/api/admin/foods/${foodId}`, "DELETE");
-    showToast(`Deleted "${foodName}"`, "info");
+    showToast(`Deleted "${name}"`, "info");
     loadAdminFoodDatabase();
     loadAdminOverview();
   } catch (err) {
@@ -720,3 +723,277 @@ async function loadAdminAuditTrail() {
     container.innerHTML = `<div class="p-4 text-xs text-red-400">Error: ${err.message}</div>`;
   }
 }
+
+
+// ----------------------------------------------------
+// 9. EXERCISE LIBRARY MANAGER (Admin Add & Delete Exercises)
+// ----------------------------------------------------
+
+let adminExercisesList = [];
+
+async function loadAdminExerciseDatabase() {
+  const container = document.getElementById("admin-exercises-table-container");
+  if (!container) return;
+
+  const searchInput = document.getElementById("admin-exercise-search");
+  const muscleSelect = document.getElementById("admin-exercise-muscle-filter");
+  const search = searchInput ? searchInput.value.trim() : "";
+  const muscle = muscleSelect ? muscleSelect.value : "all";
+
+  container.innerHTML = `<div class="p-8 text-center text-xs text-slate-400"><i data-lucide="loader-2" class="w-5 h-5 animate-spin mx-auto mb-2 text-emerald-400"></i>Loading exercises library...</div>`;
+  lucide.createIcons();
+
+  try {
+    const url = `/api/admin/exercises?search=${encodeURIComponent(search)}&muscle_group=${encodeURIComponent(muscle)}`;
+    adminExercisesList = await apiCall(url);
+
+    if (adminExercisesList.length === 0) {
+      container.innerHTML = `
+        <div class="p-8 text-center space-y-2">
+          <p class="text-xs text-slate-400">No exercises found matching criteria.</p>
+          <button onclick="openAdminAddExerciseModal()" class="text-xs text-brand-400 hover:underline font-bold">+ Add New Exercise</button>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
+            <tr>
+              <th class="p-3">Exercise Name & Movement</th>
+              <th class="p-3">Muscle Group</th>
+              <th class="p-3">Equipment & Level</th>
+              <th class="p-3">Form Cues & Safety</th>
+              <th class="p-3">Kenyan Adaptation</th>
+              <th class="p-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800/60">
+            ${adminExercisesList.map(ex => `
+              <tr class="hover:bg-slate-900/40 transition-colors">
+                <td class="p-3">
+                  <div class="font-bold text-white flex items-center space-x-1.5">
+                    <span>${ex.name}</span>
+                  </div>
+                  <div class="text-[10px] text-slate-500 font-mono mt-0.5">${ex.movement_pattern} · #${ex.id}</div>
+                </td>
+                <td class="p-3">
+                  <span class="badge-high text-[10px] px-2 py-0.5 rounded-full font-bold">${ex.muscle_group}</span>
+                  ${ex.secondary_muscles ? `<div class="text-[10px] text-slate-500 mt-1">${ex.secondary_muscles}</div>` : ''}
+                </td>
+                <td class="p-3">
+                  <div class="text-slate-300 font-medium">${ex.equipment}</div>
+                  <div class="text-[10px] text-slate-400">${ex.difficulty}</div>
+                </td>
+                <td class="p-3 max-w-xs">
+                  <p class="text-[11px] text-slate-300 line-clamp-2"><strong>Form:</strong> ${ex.form_cues}</p>
+                  <p class="text-[10px] text-amber-400/90 line-clamp-1 mt-0.5"><strong>Safety:</strong> ${ex.safety_tips}</p>
+                </td>
+                <td class="p-3 max-w-xs">
+                  <div class="text-[11px] text-emerald-400/90 line-clamp-2">
+                    ${ex.kenyan_context || '<span class="text-slate-500 italic">None specified</span>'}
+                  </div>
+                </td>
+                <td class="p-3 text-right whitespace-nowrap">
+                  <button onclick="handleDeleteExercise('${ex.id}', '${ex.name}')" class="p-1.5 bg-red-950/60 hover:bg-red-900 text-red-300 border border-red-800/50 rounded-lg text-xs transition-all inline-flex items-center space-x-1" title="Delete Exercise">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    <span>Delete</span>
+                  </button>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    lucide.createIcons();
+  } catch (err) {
+    container.innerHTML = `<div class="p-6 text-xs text-red-400 text-center">Error loading exercises: ${err.message}</div>`;
+  }
+}
+
+function openAdminAddExerciseModal() {
+  const existing = document.getElementById("modal-admin-add-exercise");
+  if (existing) existing.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "modal-admin-add-exercise";
+  modal.className = "fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto";
+
+  modal.innerHTML = `
+    <div class="calora-card p-6 max-w-lg w-full bg-slate-900 border-purple-500/40 space-y-4 my-auto shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+          <i data-lucide="dumbbell" class="w-4 h-4 text-brand-400"></i>
+          <span>Add New Exercise to Platform Library</span>
+        </h3>
+        <button onclick="document.getElementById('modal-admin-add-exercise')?.remove()" class="p-1 text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="form-admin-add-exercise" onsubmit="submitAdminCreateExercise(event)" class="space-y-3">
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-slate-300">Exercise Name *</label>
+          <input type="text" id="adm-ex-name" required placeholder="e.g. Bulgarian Split Squats with Water Jugs" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div class="space-y-1">
+            <label class="text-xs font-semibold text-slate-300">Target Muscle Group *</label>
+            <select id="adm-ex-muscle" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+              <option value="Chest">Chest</option>
+              <option value="Back">Back</option>
+              <option value="Shoulders">Shoulders</option>
+              <option value="Biceps">Biceps</option>
+              <option value="Triceps">Triceps</option>
+              <option value="Quads" selected>Quads</option>
+              <option value="Hamstrings">Hamstrings</option>
+              <option value="Glutes">Glutes</option>
+              <option value="Calves">Calves</option>
+              <option value="Core">Core</option>
+              <option value="Full Body">Full Body</option>
+              <option value="Cardio">Cardio</option>
+            </select>
+          </div>
+
+          <div class="space-y-1">
+            <label class="text-xs font-semibold text-slate-300">Movement Pattern *</label>
+            <select id="adm-ex-pattern" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+              <option value="Squat" selected>Squat</option>
+              <option value="Push">Push</option>
+              <option value="Pull">Pull</option>
+              <option value="Hinge">Hinge</option>
+              <option value="Core">Core</option>
+              <option value="Carry">Carry</option>
+              <option value="Conditioning">Conditioning</option>
+              <option value="Isolation">Isolation</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div class="space-y-1">
+            <label class="text-xs font-semibold text-slate-300">Equipment *</label>
+            <select id="adm-ex-equip" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+              <option value="Bodyweight" selected>Bodyweight</option>
+              <option value="Dumbbells">Dumbbells</option>
+              <option value="Barbell">Barbell</option>
+              <option value="Cable">Cable Machine</option>
+              <option value="Jerrycan">Jerrycan / Water Jug</option>
+              <option value="Chair/Bench">Chair / Sturdy Bench</option>
+              <option value="Resistance Band">Resistance Band</option>
+              <option value="Household">Household Items</option>
+            </select>
+          </div>
+
+          <div class="space-y-1">
+            <label class="text-xs font-semibold text-slate-300">Difficulty Level *</label>
+            <select id="adm-ex-diff" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+              <option value="Beginner" selected>Beginner</option>
+              <option value="Intermediate">Intermediate</option>
+              <option value="Advanced">Advanced</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-slate-300">Secondary Muscles (Optional)</label>
+          <input type="text" id="adm-ex-sec-muscles" placeholder="e.g. Glutes, Adductors, Core" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-slate-300">Biomechanical Form Cues *</label>
+          <textarea id="adm-ex-cues" required placeholder="e.g. Keep chest tall, drive through front heel, maintain vertical shin angle." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white h-16"></textarea>
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-slate-300">Safety & Joint Health Tips *</label>
+          <textarea id="adm-ex-safety" required placeholder="e.g. Do not let front knee cave inward. Keep core braced to protect lower back." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white h-16"></textarea>
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-xs font-semibold text-slate-300">Kenyan Household Setup & Adaptation (Optional)</label>
+          <input type="text" id="adm-ex-kenyan" placeholder="e.g. Place back foot on a dining chair or sofa; hold 5L water bottles for load." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="document.getElementById('modal-admin-add-exercise')?.remove()" class="px-4 py-2 text-xs text-slate-400 hover:text-white">Cancel</button>
+          <button type="submit" class="bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-5 py-2 rounded-xl text-xs transition-all shadow-md shadow-brand-500/20">
+            Save Exercise
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  lucide.createIcons();
+}
+
+async function submitAdminCreateExercise(e) {
+  e.preventDefault();
+  const name = document.getElementById("adm-ex-name")?.value.trim();
+  const muscle_group = document.getElementById("adm-ex-muscle")?.value;
+  const movement_pattern = document.getElementById("adm-ex-pattern")?.value;
+  const equipment = document.getElementById("adm-ex-equip")?.value;
+  const difficulty = document.getElementById("adm-ex-diff")?.value;
+  const secondary_muscles = document.getElementById("adm-ex-sec-muscles")?.value.trim() || null;
+  const form_cues = document.getElementById("adm-ex-cues")?.value.trim();
+  const safety_tips = document.getElementById("adm-ex-safety")?.value.trim();
+  const kenyan_context = document.getElementById("adm-ex-kenyan")?.value.trim() || null;
+
+  if (!name || !muscle_group || !form_cues || !safety_tips) {
+    showToast("Please fill in all required exercise fields.", "error");
+    return;
+  }
+
+  try {
+    const res = await apiCall("/api/admin/exercises", "POST", {
+      name,
+      muscle_group,
+      movement_pattern,
+      equipment,
+      difficulty,
+      secondary_muscles,
+      form_cues,
+      safety_tips,
+      kenyan_context
+    });
+
+    showToast(`Added exercise: "${res.name}"`, "success");
+    const modal = document.getElementById("modal-admin-add-exercise");
+    if (modal) modal.remove();
+
+    loadAdminExerciseDatabase();
+    if (typeof filterExercises === "function") filterExercises();
+    if (typeof loadAdminOverview === "function") loadAdminOverview();
+  } catch (err) {
+    showToast(`Error adding exercise: ${err.message}`, "error");
+  }
+}
+
+async function handleDeleteExercise(exerciseId, exerciseName) {
+  if (!confirm(`Are you sure you want to permanently delete "${exerciseName}" from the exercise database?`)) {
+    return;
+  }
+
+  try {
+    const res = await apiCall(`/api/admin/exercises/${exerciseId}`, "DELETE");
+    showToast(res.message || `Deleted exercise "${exerciseName}"`, "success");
+    loadAdminExerciseDatabase();
+    if (typeof filterExercises === "function") filterExercises();
+    if (typeof loadAdminOverview === "function") loadAdminOverview();
+  } catch (err) {
+    showToast(`Failed to delete exercise: ${err.message}`, "error");
+  }
+}
+
+window.loadAdminExerciseDatabase = loadAdminExerciseDatabase;
+window.openAdminAddExerciseModal = openAdminAddExerciseModal;
+window.submitAdminCreateExercise = submitAdminCreateExercise;
+window.handleDeleteExercise = handleDeleteExercise;
+

@@ -87,6 +87,9 @@ async function loadCustomRecipes() {
       return;
     }
 
+    window._recipesMap = window._recipesMap || {};
+    recipes.forEach(r => window._recipesMap[r.id] = r);
+
     container.innerHTML = recipes.map(r => `
       <div class="calora-card p-5 space-y-3">
         <div class="flex items-center justify-between border-b border-slate-800 pb-2">
@@ -121,7 +124,7 @@ async function loadCustomRecipes() {
           `).join("")}
         </div>
 
-        <button onclick="logRecipeServing('${r.name}', ${r.per_serving_calories}, ${r.per_serving_protein_g}, ${r.per_serving_carbs_g}, ${r.per_serving_fat_g}, ${r.per_serving_fibre_g})" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-2 rounded-xl text-xs transition-all flex items-center justify-center space-x-1.5 border border-slate-700">
+        <button onclick="logRecipeServingById('${r.id}')" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-2 rounded-xl text-xs transition-all flex items-center justify-center space-x-1.5 border border-slate-700">
           <i data-lucide="plus" class="w-3.5 h-3.5"></i>
           <span>Log 1 Serving to Diary</span>
         </button>
@@ -133,6 +136,14 @@ async function loadCustomRecipes() {
     container.innerHTML = `<div class="col-span-2 text-red-400 text-xs p-4">Error loading recipes: ${err.message}</div>`;
   }
 }
+
+async function logRecipeServingById(recipeId) {
+  const r = window._recipesMap?.[recipeId];
+  if (r) {
+    await logRecipeServing(r.name, r.per_serving_calories, r.per_serving_protein_g, r.per_serving_carbs_g, r.per_serving_fat_g, r.per_serving_fibre_g);
+  }
+}
+window.logRecipeServingById = logRecipeServingById;
 
 async function logRecipeServing(name, cal, p, c, f, fib) {
   try {
@@ -188,7 +199,7 @@ function renderRecipeBuilderModal() {
           <i data-lucide="chef-hat" class="w-5 h-5 text-emerald-400"></i>
           <h3 class="text-base font-bold text-white">Custom Recipe Macro Calculator</h3>
         </div>
-        <button onclick="document.getElementById('modal-recipe-builder').remove()" class="p-1 text-slate-400 hover:text-white">
+        <button onclick="document.getElementById('modal-recipe-builder')?.remove()" class="p-1 text-slate-400 hover:text-white">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
@@ -248,7 +259,7 @@ function renderRecipeBuilderModal() {
         </div>
 
         <div class="flex justify-end space-x-2 pt-3 border-t border-slate-800">
-          <button onclick="document.getElementById('modal-recipe-builder').remove()" class="px-4 py-2 text-xs text-slate-400 hover:text-white">Cancel</button>
+          <button onclick="document.getElementById('modal-recipe-builder')?.remove()" class="px-4 py-2 text-xs text-slate-400 hover:text-white">Cancel</button>
           <button onclick="saveNewRecipe()" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-5 py-2 rounded-xl text-xs flex items-center space-x-1.5">
             <i data-lucide="check" class="w-4 h-4"></i>
             <span>Calculate & Save Recipe</span>
@@ -265,8 +276,9 @@ function renderRecipeBuilderModal() {
 function onRecipePresetSelected(idxVal) {
   if (idxVal === "") return;
   const p = VERIFIED_INGREDIENT_PRESETS[parseInt(idxVal)];
-  if (p) {
-    document.getElementById("recipe-ing-name").value = p.name;
+  const nameEl = document.getElementById("recipe-ing-name");
+  if (p && nameEl) {
+    nameEl.value = p.name;
   }
 }
 
@@ -274,11 +286,11 @@ function addIngredientToRecipe() {
   const nameEl = document.getElementById("recipe-ing-name");
   const gramsEl = document.getElementById("recipe-ing-grams");
   const oilEl = document.getElementById("recipe-ing-oil");
-  const presetIdx = document.getElementById("recipe-ing-preset").value;
+  const presetIdx = document.getElementById("recipe-ing-preset")?.value || "";
 
-  const name = nameEl.value.trim();
-  const grams = parseFloat(gramsEl.value) || 100;
-  const oil = oilEl.value;
+  const name = nameEl ? nameEl.value.trim() : "";
+  const grams = gramsEl ? (parseFloat(gramsEl.value) || 100) : 100;
+  const oil = oilEl ? oilEl.value : "none";
 
   if (!name) {
     showToast("Please enter an ingredient name", "error");
@@ -324,8 +336,9 @@ function addIngredientToRecipe() {
     fibre_g: fib
   });
 
-  nameEl.value = "";
-  document.getElementById("recipe-ing-preset").value = "";
+  if (nameEl) nameEl.value = "";
+  const presetEl = document.getElementById("recipe-ing-preset");
+  if (presetEl) presetEl.value = "";
 
   updateRecipeIngredientsView();
 }
@@ -345,7 +358,7 @@ function updateRecipeIngredientsView() {
   const totalF = Math.round(recipeIngredients.reduce((sum, i) => sum + i.fat_g, 0) * 10) / 10;
   const totalFib = Math.round(recipeIngredients.reduce((sum, i) => sum + i.fibre_g, 0) * 10) / 10;
 
-  const servings = parseInt(document.getElementById("recipe-servings").value, 10) || 4;
+  const servings = parseInt(document.getElementById("recipe-servings")?.value, 10) || 4;
 
   const perCal = Math.round(totalCal / servings);
   const perP = Math.round((totalP / servings) * 10) / 10;
@@ -412,8 +425,8 @@ function updateRecipeIngredientsView() {
 }
 
 async function saveNewRecipe() {
-  const title = document.getElementById("recipe-title").value.trim();
-  const servings = parseInt(document.getElementById("recipe-servings").value, 10) || 4;
+  const title = document.getElementById("recipe-title")?.value?.trim() || "";
+  const servings = parseInt(document.getElementById("recipe-servings")?.value, 10) || 4;
 
   if (!title) {
     showToast("Please enter a recipe title", "error");
@@ -431,7 +444,7 @@ async function saveNewRecipe() {
       ingredients: recipeIngredients
     });
 
-    document.getElementById("modal-recipe-builder").remove();
+    document.getElementById("modal-recipe-builder")?.remove();
     showToast(`Recipe "${title}" created successfully!`, "success");
     loadCustomRecipes();
   } catch (err) {
@@ -456,7 +469,7 @@ function openCustomFoodModal() {
     <div class="calora-card p-6 max-w-md w-full bg-slate-900 border-slate-700 space-y-4 max-h-[90vh] overflow-y-auto modal-content">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <h3 class="text-base font-bold text-white">Create Custom Food</h3>
-        <button onclick="document.getElementById('modal-custom-food').remove()" class="p-1 text-slate-400 hover:text-white">
+        <button onclick="document.getElementById('modal-custom-food')?.remove()" class="p-1 text-slate-400 hover:text-white">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
@@ -505,7 +518,7 @@ function openCustomFoodModal() {
         </div>
 
         <div class="flex justify-end space-x-2 pt-2">
-          <button type="button" onclick="document.getElementById('modal-custom-food').remove()" class="px-4 py-2 text-slate-400">Cancel</button>
+          <button type="button" onclick="document.getElementById('modal-custom-food')?.remove()" class="px-4 py-2 text-slate-400">Cancel</button>
           <button type="submit" class="bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold px-4 py-2 rounded-xl">Save Custom Food</button>
         </div>
       </form>
@@ -518,12 +531,12 @@ function openCustomFoodModal() {
 
 async function submitCustomFood(e) {
   e.preventDefault();
-  const name = document.getElementById("cust-name").value.trim();
-  const cat = document.getElementById("cust-cat").value;
-  const cal = parseFloat(document.getElementById("cust-cal").value);
-  const p = parseFloat(document.getElementById("cust-p").value) || 0;
-  const c = parseFloat(document.getElementById("cust-c").value) || 0;
-  const f = parseFloat(document.getElementById("cust-f").value) || 0;
+  const name = document.getElementById("cust-name")?.value?.trim() || "";
+  const cat = document.getElementById("cust-cat")?.value || "Kenyan meals";
+  const cal = parseFloat(document.getElementById("cust-cal")?.value) || 0;
+  const p = parseFloat(document.getElementById("cust-p")?.value) || 0;
+  const c = parseFloat(document.getElementById("cust-c")?.value) || 0;
+  const f = parseFloat(document.getElementById("cust-f")?.value) || 0;
 
   try {
     await apiCall("/api/foods/custom", "POST", {
@@ -539,7 +552,7 @@ async function submitCustomFood(e) {
       ]
     });
 
-    document.getElementById("modal-custom-food").remove();
+    document.getElementById("modal-custom-food")?.remove();
     showToast(`Custom food "${name}" created!`, "success");
     loadFoodSearchResults();
   } catch (err) {

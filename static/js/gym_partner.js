@@ -331,6 +331,8 @@ async function renderGymPackagesStore(gymId) {
 
   try {
     const packages = await apiCall(`/api/gyms/${gymId}/packages`);
+    window._gymPackagesMap = window._gymPackagesMap || {};
+    packages.forEach(p => window._gymPackagesMap[p.id] = p);
 
     container.innerHTML = `
       <div class="space-y-4">
@@ -362,7 +364,7 @@ async function renderGymPackagesStore(gymId) {
                 ${p.terms ? `<p class="text-[11px] text-slate-500 italic">Terms: ${p.terms}</p>` : ''}
               </div>
 
-              <button onclick="openPackageCheckoutModal('${gymId}', '${p.id}', '${p.name}', ${p.price_kes})" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center space-x-1.5 shadow-md shadow-emerald-500/10">
+              <button onclick="openPackageCheckoutModalById('${gymId}', '${p.id}')" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center space-x-1.5 shadow-md shadow-emerald-500/10">
                 <i data-lucide="credit-card" class="w-3.5 h-3.5"></i>
                 <span>Buy with M-Pesa</span>
               </button>
@@ -379,6 +381,14 @@ async function renderGymPackagesStore(gymId) {
   }
 }
 
+function openPackageCheckoutModalById(gymId, packageId) {
+  const p = window._gymPackagesMap?.[packageId];
+  if (p) {
+    openPackageCheckoutModal(gymId, p.id, p.name, p.price_kes);
+  }
+}
+window.openPackageCheckoutModalById = openPackageCheckoutModalById;
+
 function openPackageCheckoutModal(gymId, packageId, packageName, priceKes) {
   const existing = document.getElementById("modal-package-checkout");
   if (existing) existing.remove();
@@ -394,7 +404,7 @@ function openPackageCheckoutModal(gymId, packageId, packageName, priceKes) {
           <i data-lucide="smartphone" class="w-4 h-4 text-emerald-400"></i>
           <span>M-Pesa STK Push Checkout</span>
         </h3>
-        <button onclick="document.getElementById('modal-package-checkout').remove()" class="p-1 text-slate-400 hover:text-white">
+        <button onclick="document.getElementById('modal-package-checkout')?.remove()" class="p-1 text-slate-400 hover:text-white">
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
@@ -415,7 +425,7 @@ function openPackageCheckoutModal(gymId, packageId, packageName, priceKes) {
         <div id="checkout-status-feedback" class="hidden p-3 rounded-xl text-xs"></div>
 
         <div class="flex justify-end space-x-2 pt-2 border-t border-slate-800">
-          <button onclick="document.getElementById('modal-package-checkout').remove()" class="px-4 py-2 text-xs text-slate-400 hover:text-white">Cancel</button>
+          <button onclick="document.getElementById('modal-package-checkout')?.remove()" class="px-4 py-2 text-xs text-slate-400 hover:text-white">Cancel</button>
           <button id="btn-submit-mpesa-pay" onclick="submitMpesaPackageOrder('${gymId}', '${packageId}', ${priceKes})" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-5 py-2.5 rounded-xl text-xs flex items-center space-x-1.5">
             <span>Send STK Push (KES ${priceKes})</span>
           </button>
@@ -429,7 +439,7 @@ function openPackageCheckoutModal(gymId, packageId, packageName, priceKes) {
 }
 
 async function submitMpesaPackageOrder(gymId, packageId, priceKes) {
-  const phone = document.getElementById("checkout-mpesa-phone").value.trim();
+  const phone = document.getElementById("checkout-mpesa-phone")?.value?.trim() || "";
   const feedback = document.getElementById("checkout-status-feedback");
   const btn = document.getElementById("btn-submit-mpesa-pay");
 
@@ -438,8 +448,10 @@ async function submitMpesaPackageOrder(gymId, packageId, priceKes) {
     return;
   }
 
-  btn.disabled = true;
-  btn.innerHTML = `<span>Processing STK Push...</span>`;
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span>Processing STK Push...</span>`;
+  }
 
   try {
     const res = await apiCall(`/api/gyms/${gymId}/packages/${packageId}/order`, "POST", {
@@ -464,7 +476,7 @@ async function submitMpesaPackageOrder(gymId, packageId, priceKes) {
         receipt_number: "MP" + Math.floor(Math.random() * 1000000)
       });
       showToast("M-Pesa payment received! Package activated.", "success");
-      document.getElementById("modal-package-checkout").remove();
+      document.getElementById("modal-package-checkout")?.remove();
       renderGymPackagesStore(gymId);
     }, 2000);
 
@@ -638,7 +650,7 @@ async function openMemberConsentModal(gymId) {
           <i data-lucide="lock" class="w-4 h-4 text-emerald-400"></i>
           <span>Member Data Sharing & Privacy</span>
         </h3>
-        <button onclick="document.getElementById('modal-member-consent').remove()" class="p-1 text-slate-400 hover:text-white">
+        <button onclick="document.getElementById('modal-member-consent')?.remove()" class="p-1 text-slate-400 hover:text-white">
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
@@ -682,7 +694,7 @@ async function openMemberConsentModal(gymId) {
       </div>
 
       <div class="flex justify-end space-x-2 pt-3 border-t border-slate-800">
-        <button onclick="document.getElementById('modal-member-consent').remove()" class="px-4 py-2 text-xs text-slate-400 hover:text-white">Cancel</button>
+        <button onclick="document.getElementById('modal-member-consent')?.remove()" class="px-4 py-2 text-xs text-slate-400 hover:text-white">Cancel</button>
         <button onclick="saveMemberConsent('${gymId}')" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-5 py-2 rounded-xl text-xs">Save Consent Settings</button>
       </div>
     </div>
@@ -693,10 +705,10 @@ async function openMemberConsentModal(gymId) {
 }
 
 async function saveMemberConsent(gymId) {
-  const nutrition = document.getElementById("consent-nutrition").checked;
-  const weight = document.getElementById("consent-weight").checked;
-  const detailed = document.getElementById("consent-detailed").checked;
-  const email = document.getElementById("consent-email").checked;
+  const nutrition = !!document.getElementById("consent-nutrition")?.checked;
+  const weight = !!document.getElementById("consent-weight")?.checked;
+  const detailed = !!document.getElementById("consent-detailed")?.checked;
+  const email = !!document.getElementById("consent-email")?.checked;
 
   try {
     await apiCall(`/api/gyms/${gymId}/my-consent`, "PUT", {
@@ -707,7 +719,7 @@ async function saveMemberConsent(gymId) {
       receive_weekly_email: email
     });
     showToast("Privacy and consent preferences saved!", "success");
-    document.getElementById("modal-member-consent").remove();
+    document.getElementById("modal-member-consent")?.remove();
   } catch (err) {
     showToast(err.message, "error");
   }
@@ -737,7 +749,7 @@ function previewMemberEmailReport(gymId, userId) {
           <i data-lucide="mail" class="w-4 h-4 text-emerald-400"></i>
           <span>Automated Weekly Member Email Preview</span>
         </h3>
-        <button onclick="document.getElementById('modal-email-preview').remove()" class="p-1 text-slate-400 hover:text-white">
+        <button onclick="document.getElementById('modal-email-preview')?.remove()" class="p-1 text-slate-400 hover:text-white">
           <i data-lucide="x" class="w-4 h-4"></i>
         </button>
       </div>
@@ -752,7 +764,7 @@ function previewMemberEmailReport(gymId, userId) {
           <button onclick="sendTestEmailNow('${gymId}')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs">
             Send Test to My Email
           </button>
-          <button onclick="document.getElementById('modal-email-preview').remove()" class="bg-slate-800 text-slate-300 font-semibold px-4 py-2 rounded-xl text-xs">
+          <button onclick="document.getElementById('modal-email-preview')?.remove()" class="bg-slate-800 text-slate-300 font-semibold px-4 py-2 rounded-xl text-xs">
             Close
           </button>
         </div>

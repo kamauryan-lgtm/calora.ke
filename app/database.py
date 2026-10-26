@@ -732,6 +732,21 @@ def init_database():
     )
     """)
 
+    # 36. User Coach Memories (Persistent Coach Chat History & Photos)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS user_coach_memories (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        sender TEXT NOT NULL, -- 'user' or 'coach'
+        message TEXT NOT NULL,
+        image_data TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_ucm_user_date ON user_coach_memories (user_id, date)")
+
     # Safe column migrations for gyms table
     try:
         cursor.execute("ALTER TABLE gyms ADD COLUMN slug TEXT")

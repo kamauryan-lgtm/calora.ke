@@ -170,8 +170,10 @@ function renderMealSections(meals, summaries) {
         </div>
       `;
     } else {
+      window._dashboardItemsMap = window._dashboardItemsMap || {};
       itemsHtml = `<div class="space-y-2">`;
       items.forEach(item => {
+        window._dashboardItemsMap[item.id] = item;
         const confClass = item.confidence_level === "HIGH" ? "badge-high" :
                           item.confidence_level === "LOW" ? "badge-low" : "badge-medium";
 
@@ -202,12 +204,12 @@ function renderMealSections(meals, summaries) {
 
               <div class="flex items-center space-x-1">
                 <!-- "Why this number?" Audit Trigger -->
-                <button onclick='openWhyThisNumberModal(${JSON.stringify(item)})' class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-brand-400 transition-colors" title="Why this number? (Transparent Calculation)">
+                <button onclick="openWhyThisNumberModal('${item.id}')" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-brand-400 transition-colors" title="Why this number? (Transparent Calculation)">
                   <i data-lucide="help-circle" class="w-4 h-4"></i>
                 </button>
 
                 <!-- Report Issue Trigger -->
-                <button onclick="openReportFoodModal('${item.food_id || ''}', '${item.food_name}')" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-amber-400 transition-colors" title="Report Discrepancy">
+                <button onclick="openReportFoodModalById('${item.id}')" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-amber-400 transition-colors" title="Report Discrepancy">
                   <i data-lucide="flag" class="w-4 h-4"></i>
                 </button>
 
@@ -236,7 +238,10 @@ function openLogForMeal(mealType) {
 }
 
 // "WHY THIS NUMBER?" MODAL POPULATION (Section 26)
-function openWhyThisNumberModal(item) {
+function openWhyThisNumberModal(itemOrId) {
+  const item = (typeof itemOrId === "string" ? window._dashboardItemsMap?.[itemOrId] : itemOrId) || itemOrId;
+  if (!item) return;
+
   const modalBody = document.getElementById("why-number-modal-body");
   if (!modalBody) return;
 
@@ -314,6 +319,14 @@ function openWhyThisNumberModal(item) {
   openModal("modal-why-this-number");
   lucide.createIcons();
 }
+
+function openReportFoodModalById(itemId) {
+  const item = window._dashboardItemsMap?.[itemId];
+  if (item) {
+    openReportFoodModal(item.food_id || '', item.food_name || '');
+  }
+}
+window.openReportFoodModalById = openReportFoodModalById;
 
 async function deleteMealItem(itemId) {
   if (!confirm("Remove this food item from your diary?")) return;
