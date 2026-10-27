@@ -15,7 +15,7 @@ const AppState = {
 // Configurable API base URL (empty string for same-origin / Netlify redirect proxy)
 const API_BASE = window.CALORA_API_BASE || localStorage.getItem("calora_api_base") || "";
 
-// API Helper with automatic JWT header
+// API Helper with automatic JWT header and robust non-JSON / HTML response protection
 async function apiCall(endpoint, method = "GET", body = null) {
   const headers = { "Content-Type": "application/json" };
   if (AppState.token) {
@@ -37,11 +37,43 @@ async function apiCall(endpoint, method = "GET", body = null) {
         return apiCall(endpoint, method, body);
       }
     }
-    const data = await res.json();
+
+    const contentType = (res.headers.get("content-type") || "").toLowerCase();
+    const isJson = contentType.includes("application/json");
+
     if (!res.ok) {
-      throw new Error(data.detail || "API request failed");
+      let errMsg = `Request failed (${res.status} ${res.statusText})`;
+      if (isJson) {
+        try {
+          const errData = await res.json();
+          errMsg = errData.detail || errMsg;
+        } catch (_) {}
+      } else {
+        const text = await res.text();
+        if (text.trim().startsWith("<")) {
+          errMsg = `Backend error ${res.status}: HTML error page returned.`;
+        } else if (text) {
+          errMsg = text.slice(0, 150);
+        }
+      }
+      throw new Error(errMsg);
     }
-    return data;
+
+    // Response is OK (status 200-299), but verify it's actual JSON and not an HTML SPA fallback
+    if (!isJson) {
+      const text = await res.text();
+      if (text.trim().startsWith("<")) {
+        // SPA catch-all (e.g. Netlify returning index.html for unmapped /api/* routes)
+        throw new Error(`API endpoint ${endpoint} returned HTML (SPA fallback / static host). Live backend unavailable.`);
+      }
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Invalid JSON returned from ${endpoint}: ${text.slice(0, 80)}`);
+      }
+    }
+
+    return await res.json();
   } catch (err) {
     console.error("API error:", err);
     throw err;
@@ -306,7 +338,23 @@ async function instantDemoLogin(role = "user", reload = true) {
       else switchTab("dashboard");
     }
   } catch (err) {
-    showToast(err.message, "error");
+    console.warn("Demo login API unavailable, initializing offline demo session:", err.message);
+    const demoUser = {
+      id: "demo_user_1",
+      email: "demo@calora.app",
+      name: "Ryan (Demo)",
+      role: "user"
+    };
+    AppState.token = "demo_token_calora";
+    AppState.user = demoUser;
+    localStorage.setItem("calora_token", AppState.token);
+    closeModal("modal-auth");
+    updateUserDisplay();
+    showToast(`Signed in locally as ${demoUser.name}`, "info");
+
+    if (reload) {
+      switchTab("dashboard");
+    }
   }
 }
 

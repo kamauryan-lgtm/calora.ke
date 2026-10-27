@@ -5,12 +5,143 @@
 
 let currentDashboardData = null;
 
+// Local offline diary helpers
+function getLocalDashboardData(dateStr) {
+  const key = "calora_local_diary_" + dateStr;
+  let saved = null;
+  try {
+    saved = JSON.parse(localStorage.getItem(key));
+  } catch (e) {}
+
+  if (!saved) {
+    saved = { breakfast: [], lunch: [], dinner: [], snack: [] };
+  }
+
+  let totalCal = 0;
+  let totalProtein = 0;
+  let totalCarbs = 0;
+  let totalFat = 0;
+  let totalFibre = 0;
+  let minRange = 0;
+  let maxRange = 0;
+
+  const summaries = {};
+  ["breakfast", "lunch", "dinner", "snack"].forEach(mealKey => {
+    const items = saved[mealKey] || [];
+    let mealCal = 0;
+    let mealProt = 0;
+    let mealCarb = 0;
+    let mealFat = 0;
+    let mealFib = 0;
+    items.forEach(it => {
+      mealCal += it.calories || 0;
+      mealProt += it.protein_g || 0;
+      mealCarb += it.carbs_g || 0;
+      mealFat += it.fat_g || 0;
+      mealFib += it.fibre_g || 0;
+      minRange += it.uncertainty_min || Math.round((it.calories || 0) * 0.9);
+      maxRange += it.uncertainty_max || Math.round((it.calories || 0) * 1.15);
+    });
+    totalCal += mealCal;
+    totalProtein += mealProt;
+    totalCarbs += mealCarb;
+    totalFat += mealFat;
+    totalFibre += mealFib;
+
+    summaries[mealKey] = {
+      calories: mealCal,
+      range_display: `${Math.round(mealCal * 0.9)}–${Math.round(mealCal * 1.15)} kcal`,
+      confidence: "HIGH",
+      macros: {
+        protein_g: Number(mealProt.toFixed(1)),
+        carbs_g: Number(mealCarb.toFixed(1)),
+        fat_g: Number(mealFat.toFixed(1)),
+        fibre_g: Number(mealFib.toFixed(1))
+      }
+    };
+  });
+
+  const targetCal = AppState.profile?.target_calories || 2000;
+  const targetProt = AppState.profile?.target_protein_g || 130;
+  const targetCarb = AppState.profile?.target_carbs_g || 220;
+  const targetFat = AppState.profile?.target_fat_g || 65;
+  const targetFibre = 30;
+
+  return {
+    date: dateStr,
+    consumed: {
+      calories: totalCal,
+      range_display: totalCal > 0 ? `${minRange}–${maxRange} kcal` : "0–0 kcal",
+      confidence: "HIGH",
+      main_uncertainties: ["Portion estimation"],
+      macros: {
+        protein_g: Number(totalProtein.toFixed(1)),
+        carbs_g: Number(totalCarbs.toFixed(1)),
+        fat_g: Number(totalFat.toFixed(1)),
+        fibre_g: Number(totalFibre.toFixed(1))
+      }
+    },
+    target: {
+      calories: targetCal,
+      protein_g: targetProt,
+      carbs_g: targetCarb,
+      fat_g: targetFat,
+      fibre_g: targetFibre
+    },
+    remaining: {
+      calories: Math.max(0, targetCal - totalCal),
+      protein_g: Math.max(0, Number((targetProt - totalProtein).toFixed(1))),
+      carbs_g: Math.max(0, Number((targetCarb - totalCarbs).toFixed(1))),
+      fat_g: Math.max(0, Number((targetFat - totalFat).toFixed(1))),
+      fibre_g: Math.max(0, Number((targetFibre - totalFibre).toFixed(1)))
+    },
+    meals: saved,
+    meal_summaries: summaries
+  };
+}
+window.getLocalDashboardData = getLocalDashboardData;
+
+function saveLocalMealItem(dateStr, mealType, itemObj) {
+  const key = "calora_local_diary_" + dateStr;
+  let saved = null;
+  try {
+    saved = JSON.parse(localStorage.getItem(key));
+  } catch (e) {}
+  if (!saved) {
+    saved = { breakfast: [], lunch: [], dinner: [], snack: [] };
+  }
+  if (!saved[mealType]) saved[mealType] = [];
+  saved[mealType].push(itemObj);
+  localStorage.setItem(key, JSON.stringify(saved));
+}
+window.saveLocalMealItem = saveLocalMealItem;
+
+function deleteLocalMealItem(dateStr, itemId) {
+  const key = "calora_local_diary_" + dateStr;
+  let saved = null;
+  try {
+    saved = JSON.parse(localStorage.getItem(key));
+  } catch (e) {}
+  if (!saved) return;
+  ["breakfast", "lunch", "dinner", "snack"].forEach(mealKey => {
+    saved[mealKey] = (saved[mealKey] || []).filter(it => it.id !== itemId);
+  });
+  localStorage.setItem(key, JSON.stringify(saved));
+}
+window.deleteLocalMealItem = deleteLocalMealItem;
+
 async function loadDashboardData() {
   const container = document.getElementById("meals-container");
   if (!container) return;
 
   try {
-    const data = await apiCall(`/api/meals/date/${AppState.currentDate}`);
+    let data = null;
+    try {
+      data = await apiCall(`/api/meals/date/${AppState.currentDate}`);
+    } catch (err) {
+      console.warn("Backend API unavailable, loading local offline diary:", err.message);
+      data = getLocalDashboardData(AppState.currentDate);
+    }
     currentDashboardData = data;
 
     // Update Calories Overview
@@ -335,7 +466,10 @@ async function deleteMealItem(itemId) {
     showToast("Food item removed", "info");
     loadDashboardData();
   } catch (err) {
-    showToast(err.message, "error");
+    console.warn("Backend delete unavailable, removing from local diary:", err.message);
+    deleteLocalMealItem(AppState.currentDate, itemId);
+    showToast("Food item removed", "info");
+    loadDashboardData();
   }
 }
 
@@ -363,6 +497,30 @@ async function submitQuickAdd(e) {
     showToast(`Quick-added ${calories} kcal to ${mealType}`, "success");
     loadDashboardData();
   } catch (err) {
-    showToast(err.message, "error");
+    console.warn("Backend quick-add unavailable, saving locally:", err.message);
+    const itemObj = {
+      id: "quick_" + Date.now(),
+      food_id: "quick_add",
+      food_name: name || "Quick Calorie Entry",
+      portion_name: "Quick Add",
+      gram_weight: 100,
+      cooking_oil_type: "none",
+      prep_method: "boiled",
+      calories: calories,
+      logged_calories: calories,
+      range_low: Math.round(calories * 0.95),
+      range_high: Math.round(calories * 1.05),
+      protein_g: p,
+      carbs_g: c,
+      fat_g: f,
+      fibre_g: 0,
+      uncertainty_min: Math.round(calories * 0.95),
+      uncertainty_max: Math.round(calories * 1.05),
+      confidence_level: "HIGH"
+    };
+    saveLocalMealItem(AppState.currentDate, mealType, itemObj);
+    closeModal("modal-quick-add");
+    showToast(`Quick-added ${calories} kcal to ${mealType} (Saved locally)`, "success");
+    loadDashboardData();
   }
 }

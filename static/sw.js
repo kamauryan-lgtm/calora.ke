@@ -9,6 +9,7 @@ const ASSETS_TO_CACHE = [
   "/static/manifest.json",
   "/static/favicon.svg",
   "/static/css/app.css",
+  "/static/js/offline_database.js",
   "/static/js/app.js",
   "/static/js/dashboard.js",
   "/static/js/food_log.js",
