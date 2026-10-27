@@ -12,8 +12,22 @@ const AppState = {
   currentLogMode: "search"
 };
 
-// Configurable API base URL (empty string for same-origin / Netlify redirect proxy)
-const API_BASE = window.CALORA_API_BASE || localStorage.getItem("calora_api_base") || "";
+// Configurable API base URL (auto-connects to local backend when served from live-server or dev port)
+function getCaloraApiBase() {
+  if (window.CALORA_API_BASE) return window.CALORA_API_BASE;
+  const stored = localStorage.getItem("calora_api_base");
+  if (stored) return stored;
+
+  if (typeof window !== "undefined" && window.location) {
+    const port = window.location.port;
+    const host = window.location.hostname;
+    if ((host === "localhost" || host === "127.0.0.1") && port && port !== "8000") {
+      return `http://${host}:8000`;
+    }
+  }
+  return "";
+}
+const API_BASE = getCaloraApiBase();
 
 // API Helper with automatic JWT header and robust non-JSON / HTML response protection
 async function apiCall(endpoint, method = "GET", body = null) {
@@ -51,7 +65,7 @@ async function apiCall(endpoint, method = "GET", body = null) {
       } else {
         const text = await res.text();
         if (text.trim().startsWith("<")) {
-          errMsg = `Backend error ${res.status}: HTML error page returned.`;
+          errMsg = `Backend endpoint '${endpoint}' returned ${res.status} HTML. Verify backend server is running on http://127.0.0.1:8000.`;
         } else if (text) {
           errMsg = text.slice(0, 150);
         }
@@ -221,8 +235,7 @@ function switchTab(tabId) {
   // Enforce strict admin access: Only admin can see and enter the admin dashboard
   if (tabId === "admin") {
     if (!AppState.user || AppState.user.role !== "admin") {
-      showToast("Admin access restricted. Please authenticate with administrator password.", "error");
-      openAdminAuthModal();
+      showToast("Access restricted: Administrator privileges required.", "error");
       return;
     }
   }
@@ -640,6 +653,18 @@ async function initializeApp() {
 
   loadDashboardData();
   lucide.createIcons();
+
+  // Secure admin shortcut trigger for authorized platform administrators (Ctrl+Shift+A or #admin-auth)
+  window.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "A" || e.key === "a")) {
+      e.preventDefault();
+      openAdminAuthModal();
+    }
+  });
+
+  if (window.location.hash === "#admin-portal" || window.location.hash === "#admin-auth") {
+    openAdminAuthModal();
+  }
 }
 
 window.addEventListener("DOMContentLoaded", initializeApp);

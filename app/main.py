@@ -38,7 +38,8 @@ from app.models import (
     GymRegisterRequest, GymBrandingUpdateRequest, GymPackageCreateRequest, GymPackageOrderRequest,
     GymSubscribeRequest, AdminUpdatePlanRequest, GymInviteRequest, MemberConsentUpdateRequest,
     InitiatePaymentRequest, PaymentCallbackRequest, SendTestEmailRequest,
-    AdminUpdateUserRoleRequest, AdminCreateFoodRequest, AdminUpdateFoodRequest, CopyMealToTodayRequest,
+    AdminUpdateUserRoleRequest, AdminUpdateUserStatusRequest, AdminUpdateUserRestrictionsRequest,
+    AdminCreateFoodRequest, AdminUpdateFoodRequest, CopyMealToTodayRequest,
     ChangePasswordRequest, AdminCreateExerciseRequest
 )
 
@@ -51,6 +52,32 @@ app = FastAPI(
     description="Nutrition and Calorie Tracking with Accuracy, Transparency, and Uncertainty Awareness",
     version="1.0.0"
 )
+
+# Netlify Serverless & Path Normalization Middleware
+@app.middleware("http")
+async def normalize_api_path_middleware(request, call_next):
+    prefix = "/.netlify/functions/api"
+    path = request.scope.get("path", "")
+    if path.startswith(prefix):
+        new_path = path[len(prefix):]
+        if not new_path.startswith("/"):
+            new_path = "/" + new_path
+        if not new_path.startswith("/api/") and new_path != "/api":
+            new_path = "/api" + new_path
+        request.scope["path"] = new_path
+
+    response = await call_next(request)
+    return response
+
+# Custom 404 handler: Ensure /api/* calls ALWAYS return JSON, never HTML
+@app.exception_handler(404)
+async def custom_404_handler(request, exc):
+    if request.url.path.startswith("/api/") or request.url.path == "/api":
+        return JSONResponse(status_code=404, content={"detail": f"API endpoint not found: {request.url.path}"})
+    index_path = os.path.join(STATIC_DIR, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return HTMLResponse("<h1>404 Not Found</h1>", status_code=404)
 
 # CORS setup
 app.add_middleware(
@@ -593,6 +620,10 @@ def log_meal_item(req: LogItemRequest, user: Dict[str, Any] = Depends(get_curren
     Log an item into the user's diary.
     Calculates transparent range, confidence, oil impact, and source attribution.
     """
+    restricted = json.loads(user.get("restricted_features") or "[]")
+    if "food_log" in restricted:
+        raise HTTPException(status_code=403, detail="Access to Food Logging has been restricted on your account by an administrator.")
+
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -1161,6 +1192,9 @@ def get_weekly_analysis(user: Dict[str, Any] = Depends(get_current_user)):
 
 @app.post("/api/assistant/chat")
 def assistant_chat(req: AssistantChatRequest, user: Dict[str, Any] = Depends(get_current_user)):
+    restricted = json.loads(user.get("restricted_features") or "[]")
+    if "ai_coach" in restricted:
+        raise HTTPException(status_code=403, detail="Access to the AI Coach has been restricted on your account by an administrator.")
     target_date = req.date or req.date_str or date.today().isoformat()
     return handle_assistant_query(req.query, user["id"], target_date, req.image_data)
 
@@ -1709,6 +1743,10 @@ def generate_workout_routine(req: GenerateWorkoutRequest):
 
 @app.post("/api/workouts/log")
 def log_user_workout(req: LogWorkoutRequest, user: Dict[str, Any] = Depends(get_current_user)):
+    restricted = json.loads(user.get("restricted_features") or "[]")
+    if "workouts" in restricted:
+        raise HTTPException(status_code=403, detail="Access to Workout Logging has been restricted on your account by an administrator.")
+
     conn = get_db_connection()
     cursor = conn.cursor()
     now_str = datetime.now().isoformat()
@@ -2516,12 +2554,12 @@ def send_weekly_reports_to_members(gym_id: str, user: Dict[str, Any] = Depends(g
 # ==========================================
 
 @app.get("/api/admin/users")
-def get_admin_users_list(search: Optional[str] = Query(None), role: Optional[str] = Query(None), admin: Dict[str, Any] = Depends(get_current_admin_user)):
+def get_admin_users_list(search: Optional[str] = Query(None), role: Optional[str] = Query(None), status: Optional[str] = Query(None), admin: Dict[str, Any] = Depends(get_current_admin_user)):
     conn = get_db_connection()
     cursor = conn.cursor()
 
     query = """
-    SELECT u.id, u.email, u.name, u.role, u.created_at,
+    SELECT u.id, u.email, u.name, u.role, u.status, u.restricted_features, u.created_at, u.last_login,
            up.age, up.sex, up.current_weight_kg, up.goal_weight_kg, up.target_calories, up.primary_goal, up.deficit_tier
     FROM users u
     LEFT JOIN user_profiles up ON u.id = up.user_id
@@ -2535,12 +2573,20 @@ def get_admin_users_list(search: Optional[str] = Query(None), role: Optional[str
     if role and role != "all":
         query += " AND u.role = ?"
         params.append(role)
+    if status and status != "all":
+        query += " AND u.status = ?"
+        params.append(status)
 
     query += " ORDER BY u.created_at DESC"
     cursor.execute(query, params)
     users = [dict(r) for r in cursor.fetchall()]
 
     for u in users:
+        u["status"] = u.get("status") or "active"
+        try:
+            u["restricted_features"] = json.loads(u.get("restricted_features") or "[]")
+        except Exception:
+            u["restricted_features"] = []
         cursor.execute("SELECT COUNT(*) FROM meals WHERE user_id = ?", (u["id"],))
         u["total_meals_logged"] = cursor.fetchone()[0]
         cursor.execute("SELECT COUNT(*) FROM user_workout_logs WHERE user_id = ?", (u["id"],))
@@ -2556,6 +2602,9 @@ def update_user_role(user_id: str, req: AdminUpdateUserRoleRequest, admin: Dict[
     if req.role not in allowed_roles:
         raise HTTPException(status_code=400, detail=f"Invalid role. Must be one of {allowed_roles}")
 
+    if user_id == admin["id"] and req.role != "admin":
+        raise HTTPException(status_code=400, detail="Cannot revoke your own administrator role.")
+
     conn = get_db_connection()
     cursor = conn.cursor()
     now_str = datetime.now().isoformat()
@@ -2567,7 +2616,7 @@ def update_user_role(user_id: str, req: AdminUpdateUserRoleRequest, admin: Dict[
         raise HTTPException(status_code=404, detail="User not found")
 
     old_role = target["role"]
-    cursor.execute("UPDATE users SET role = ?, updated_at = ? WHERE id = ?", (req.role, now_str, user_id))
+    cursor.execute("UPDATE users SET role = ? WHERE id = ?", (req.role, user_id))
 
     # Audit log
     cursor.execute("""
@@ -2578,6 +2627,74 @@ def update_user_role(user_id: str, req: AdminUpdateUserRoleRequest, admin: Dict[
     conn.commit()
     conn.close()
     return {"status": "success", "user_id": user_id, "new_role": req.role}
+
+
+@app.put("/api/admin/users/{user_id}/status")
+def update_user_status(user_id: str, req: AdminUpdateUserStatusRequest, admin: Dict[str, Any] = Depends(get_current_admin_user)):
+    allowed_statuses = ["active", "suspended", "restricted"]
+    if req.status not in allowed_statuses:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of {allowed_statuses}")
+
+    if user_id == admin["id"] and req.status == "suspended":
+        raise HTTPException(status_code=400, detail="Cannot suspend your own administrator account.")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    now_str = datetime.now().isoformat()
+
+    cursor.execute("SELECT name, status FROM users WHERE id = ?", (user_id,))
+    target = cursor.fetchone()
+    if not target:
+        conn.close()
+        raise HTTPException(status_code=404, detail="User not found")
+
+    old_status = target["status"] or "active"
+    cursor.execute("UPDATE users SET status = ? WHERE id = ?", (req.status, user_id))
+
+    details = f"Changed status of {target['name']} from {old_status} to {req.status}."
+    if req.reason:
+        details += f" Reason: {req.reason}"
+
+    cursor.execute("""
+    INSERT INTO audit_logs (id, admin_user_id, action, target_entity, target_id, details, created_at)
+    VALUES (?, ?, 'USER_STATUS_CHANGED', 'users', ?, ?, ?)
+    """, (f"audit_{secrets.token_hex(4)}", admin["id"], user_id, details, now_str))
+
+    conn.commit()
+    conn.close()
+    return {"status": "success", "user_id": user_id, "new_status": req.status}
+
+
+@app.put("/api/admin/users/{user_id}/restrictions")
+def update_user_restrictions(user_id: str, req: AdminUpdateUserRestrictionsRequest, admin: Dict[str, Any] = Depends(get_current_admin_user)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    now_str = datetime.now().isoformat()
+
+    cursor.execute("SELECT name, status, restricted_features FROM users WHERE id = ?", (user_id,))
+    target = cursor.fetchone()
+    if not target:
+        conn.close()
+        raise HTTPException(status_code=404, detail="User not found")
+
+    features_json = json.dumps(req.restricted_features)
+    new_status = target["status"] or "active"
+    if req.restricted_features and new_status == "active":
+        new_status = "restricted"
+    elif not req.restricted_features and new_status == "restricted":
+        new_status = "active"
+
+    cursor.execute("UPDATE users SET restricted_features = ?, status = ? WHERE id = ?", (features_json, new_status, user_id))
+
+    details = f"Updated restricted features for {target['name']}: {req.restricted_features} (Status: {new_status})"
+    cursor.execute("""
+    INSERT INTO audit_logs (id, admin_user_id, action, target_entity, target_id, details, created_at)
+    VALUES (?, ?, 'USER_RESTRICTIONS_UPDATED', 'users', ?, ?, ?)
+    """, (f"audit_{secrets.token_hex(4)}", admin["id"], user_id, details, now_str))
+
+    conn.commit()
+    conn.close()
+    return {"status": "success", "user_id": user_id, "restricted_features": req.restricted_features, "account_status": new_status}
 
 
 @app.get("/api/admin/foods")
@@ -3126,6 +3243,10 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 @app.get("/{full_path:path}")
 def serve_spa(full_path: str):
     """Serve SPA index.html for all frontend routes."""
+    # Ensure unmapped /api/* routes return 404 JSON, NOT HTML index.html
+    if full_path.startswith("api/") or full_path == "api":
+        return JSONResponse(status_code=404, content={"detail": f"API endpoint not found: /{full_path}"})
+
     # Check if a static file is requested
     potential_file = os.path.join(STATIC_DIR, full_path)
     if full_path and os.path.isfile(potential_file):

@@ -79,10 +79,22 @@ def init_database():
         name TEXT NOT NULL,
         password_hash TEXT NOT NULL,
         role TEXT NOT NULL DEFAULT 'user',
+        status TEXT NOT NULL DEFAULT 'active',
+        restricted_features TEXT DEFAULT '[]',
         created_at TEXT NOT NULL,
         last_login TEXT
     )
     """)
+
+    # Ensure status and restricted_features columns exist in existing database
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active'")
+    except Exception:
+        pass
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN restricted_features TEXT DEFAULT '[]'")
+    except Exception:
+        pass
 
     # 2. User Profiles
     cursor.execute("""

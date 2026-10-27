@@ -290,6 +290,15 @@ class AdminUpdateUserRoleRequest(BaseModel):
     role: str  # client, coach, gym_owner, admin
 
 
+class AdminUpdateUserStatusRequest(BaseModel):
+    status: str  # active, suspended, restricted
+    reason: Optional[str] = None
+
+
+class AdminUpdateUserRestrictionsRequest(BaseModel):
+    restricted_features: List[str]  # e.g. ["ai_coach", "workouts", "gym_partner", "food_log"]
+
+
 class AdminCreateFoodRequest(BaseModel):
     name: str
     category: str

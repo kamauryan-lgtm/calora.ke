@@ -1,0 +1,4 @@
+{
+  "detail": "API endpoint not found. Ensure the FastAPI backend is running and the route is registered.",
+  "status": 404
+}

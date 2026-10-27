@@ -80,14 +80,21 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> Dict[str, A
     user_id = payload["sub"]
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, email, name, role FROM users WHERE id = ?", (user_id,))
+    cursor.execute("SELECT id, email, name, role, status, restricted_features FROM users WHERE id = ?", (user_id,))
     row = cursor.fetchone()
     conn.close()
 
     if not row:
         raise HTTPException(status_code=401, detail="User account not found")
 
-    return dict(row)
+    user_dict = dict(row)
+    if user_dict.get("status") == "suspended":
+        raise HTTPException(
+            status_code=403,
+            detail="Your account has been suspended by an administrator. Access is disabled."
+        )
+
+    return user_dict
 
 
 def get_current_admin_user(current_user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:
