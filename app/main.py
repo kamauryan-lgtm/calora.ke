@@ -14,12 +14,13 @@ from fastapi import FastAPI, Depends, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.database import (
     get_db_connection, init_database, seed_database_defaults,
     hash_password, verify_password
 )
-from app.auth import create_access_token, get_current_user, get_current_admin_user
+from app.auth import create_access_token, get_current_user, get_current_admin_user, get_current_user_or_default
 from app.calculations import (
     calculate_bmr_mifflin_st_jeor, calculate_tdee, calculate_calorie_target,
     compute_item_uncertainty_and_range, compute_meal_aggregate,
@@ -69,15 +70,27 @@ async def normalize_api_path_middleware(request, call_next):
     response = await call_next(request)
     return response
 
-# Custom 404 handler: Ensure /api/* calls ALWAYS return JSON, never HTML
+# Custom exception handlers: Ensure /api/* calls ALWAYS return JSON, never HTML
 @app.exception_handler(404)
 async def custom_404_handler(request, exc):
-    if request.url.path.startswith("/api/") or request.url.path == "/api":
-        return JSONResponse(status_code=404, content={"detail": f"API endpoint not found: {request.url.path}"})
+    path = request.url.path
+    if path.startswith("/api/") or path == "/api" or "/api/" in path:
+        return JSONResponse(status_code=404, content={"detail": f"API endpoint not found: {path}"})
     index_path = os.path.join(STATIC_DIR, "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
     return HTMLResponse("<h1>404 Not Found</h1>", status_code=404)
+
+@app.exception_handler(StarletteHTTPException)
+async def starlette_http_exception_handler(request, exc: StarletteHTTPException):
+    path = request.url.path
+    if path.startswith("/api/") or path == "/api" or "/api/" in path:
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail or f"API error {exc.status_code}"})
+    if exc.status_code == 404:
+        index_path = os.path.join(STATIC_DIR, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
+    return HTMLResponse(f"<h1>{exc.status_code} {exc.detail}</h1>", status_code=exc.status_code)
 
 # CORS setup
 app.add_middleware(
@@ -1525,7 +1538,8 @@ def copy_meal_day(req: CopyMealRequest, user: Dict[str, Any] = Depends(get_curre
 # ==========================================
 
 @app.get("/api/steps/today")
-def get_today_steps(date_str: Optional[str] = Query(None), user: Dict[str, Any] = Depends(get_current_user)):
+@app.get("/api/steps/today/")
+def get_today_steps(date_str: Optional[str] = Query(None), user: Dict[str, Any] = Depends(get_current_user_or_default)):
     d = date_str or date.today().isoformat()
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -1547,7 +1561,8 @@ def get_today_steps(date_str: Optional[str] = Query(None), user: Dict[str, Any] 
 
 
 @app.get("/api/steps/history")
-def get_steps_history(days: int = Query(14), user: Dict[str, Any] = Depends(get_current_user)):
+@app.get("/api/steps/history/")
+def get_steps_history(days: int = Query(14), user: Dict[str, Any] = Depends(get_current_user_or_default)):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM daily_step_logs WHERE user_id = ? ORDER BY date DESC LIMIT ?", (user["id"], days))
@@ -1559,7 +1574,8 @@ def get_steps_history(days: int = Query(14), user: Dict[str, Any] = Depends(get_
 
 
 @app.post("/api/steps/log")
-def log_daily_steps(req: LogStepRequest, user: Dict[str, Any] = Depends(get_current_user)):
+@app.post("/api/steps/log/")
+def log_daily_steps(req: LogStepRequest, user: Dict[str, Any] = Depends(get_current_user_or_default)):
     conn = get_db_connection()
     cursor = conn.cursor()
     now_str = datetime.now().isoformat()
@@ -1587,7 +1603,8 @@ def log_daily_steps(req: LogStepRequest, user: Dict[str, Any] = Depends(get_curr
 
 
 @app.get("/api/sleep/today")
-def get_today_sleep(date_str: Optional[str] = Query(None), user: Dict[str, Any] = Depends(get_current_user)):
+@app.get("/api/sleep/today/")
+def get_today_sleep(date_str: Optional[str] = Query(None), user: Dict[str, Any] = Depends(get_current_user_or_default)):
     d = date_str or date.today().isoformat()
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -1609,7 +1626,8 @@ def get_today_sleep(date_str: Optional[str] = Query(None), user: Dict[str, Any] 
 
 
 @app.get("/api/sleep/history")
-def get_sleep_history(days: int = Query(14), user: Dict[str, Any] = Depends(get_current_user)):
+@app.get("/api/sleep/history/")
+def get_sleep_history(days: int = Query(14), user: Dict[str, Any] = Depends(get_current_user_or_default)):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM sleep_logs WHERE user_id = ? ORDER BY date DESC LIMIT ?", (user["id"], days))
@@ -1622,7 +1640,8 @@ def get_sleep_history(days: int = Query(14), user: Dict[str, Any] = Depends(get_
 
 
 @app.post("/api/sleep/log")
-def log_sleep(req: LogSleepRequest, user: Dict[str, Any] = Depends(get_current_user)):
+@app.post("/api/sleep/log/")
+def log_sleep(req: LogSleepRequest, user: Dict[str, Any] = Depends(get_current_user_or_default)):
     conn = get_db_connection()
     cursor = conn.cursor()
     now_str = datetime.now().isoformat()

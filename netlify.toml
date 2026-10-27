@@ -11,12 +11,11 @@
   to = "/.netlify/functions/api/api/:splat"
   status = 200
 
-# Return JSON 404 if API endpoint is missing (never return HTML index.html for /api)
+# Return JSON 404 fallback if API endpoint is missing (never return HTML index.html for /api)
 [[redirects]]
   from = "/api/*"
-  to = "/static/api/404.json"
+  to = "/api/404.json"
   status = 404
-  force = true
 
 # Seamless handling for static path assets
 [[redirects]]

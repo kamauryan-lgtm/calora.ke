@@ -69,7 +69,6 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> Dict[str, A
     from app.database import get_db_connection
 
     if not authorization:
-        # Fallback to demo Ryan if testing unauthenticated
         raise HTTPException(status_code=401, detail="Authentication token required")
 
     token = authorization.replace("Bearer ", "").strip()
@@ -95,6 +94,31 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> Dict[str, A
         )
 
     return user_dict
+
+
+def get_current_user_or_default(authorization: Optional[str] = Header(None)) -> Dict[str, Any]:
+    """
+    FastAPI dependency that extracts the authenticated user from JWT token,
+    or safely falls back to the default verified demo user (Ryan) when testing unauthenticated directly.
+    """
+    from app.database import get_db_connection
+
+    if not authorization:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, email, name, role, status, restricted_features FROM users WHERE email = 'ryan@calora.app' OR id = 'user_ryan_001'")
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            user_dict = dict(row)
+            if user_dict.get("status") == "suspended":
+                raise HTTPException(
+                    status_code=403,
+                    detail="Your account has been suspended by an administrator. Access is disabled."
+                )
+            return user_dict
+
+    return get_current_user(authorization)
 
 
 def get_current_admin_user(current_user: Dict[str, Any] = Depends(get_current_user)) -> Dict[str, Any]:

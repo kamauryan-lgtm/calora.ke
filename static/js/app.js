@@ -19,8 +19,14 @@ function getCaloraApiBase() {
   if (stored) return stored;
 
   if (typeof window !== "undefined" && window.location) {
+    const protocol = window.location.protocol;
     const port = window.location.port;
     const host = window.location.hostname;
+    // When opened directly via file:// or without host, default to local backend
+    if (protocol === "file:" || !host) {
+      return "http://127.0.0.1:8000";
+    }
+    // When served from local dev server (e.g. Live Server on 5500, Vite on 5173, etc.)
     if ((host === "localhost" || host === "127.0.0.1") && port && port !== "8000") {
       return `http://${host}:8000`;
     }
@@ -46,10 +52,15 @@ async function apiCall(endpoint, method = "GET", body = null) {
   try {
     const res = await fetch(url, options);
     if (res.status === 401) {
-      if (!AppState.token) {
+      // Clear rejected / invalid / dummy token and attempt seamless re-login
+      AppState.token = null;
+      localStorage.removeItem("calora_token");
+      try {
         await instantDemoLogin("user", false);
-        return apiCall(endpoint, method, body);
-      }
+        if (AppState.token && AppState.token !== "demo_token_calora") {
+          return apiCall(endpoint, method, body);
+        }
+      } catch (_) {}
     }
 
     const contentType = (res.headers.get("content-type") || "").toLowerCase();
@@ -65,7 +76,8 @@ async function apiCall(endpoint, method = "GET", body = null) {
       } else {
         const text = await res.text();
         if (text.trim().startsWith("<")) {
-          errMsg = `Backend endpoint '${endpoint}' returned ${res.status} HTML. Verify backend server is running on http://127.0.0.1:8000.`;
+          // Static server or SPA fallback returned HTML instead of API data
+          errMsg = `CALORA backend server is unavailable at ${API_BASE || 'http://127.0.0.1:8000'}. The server returned an HTML error page (${res.status}). Verify the backend is running with 'python run.py'.`;
         } else if (text) {
           errMsg = text.slice(0, 150);
         }
@@ -77,8 +89,7 @@ async function apiCall(endpoint, method = "GET", body = null) {
     if (!isJson) {
       const text = await res.text();
       if (text.trim().startsWith("<")) {
-        // SPA catch-all (e.g. Netlify returning index.html for unmapped /api/* routes)
-        throw new Error(`API endpoint ${endpoint} returned HTML (SPA fallback / static host). Live backend unavailable.`);
+        throw new Error(`CALORA backend server is unavailable at ${API_BASE || 'http://127.0.0.1:8000'}. Received HTML SPA fallback. Verify the backend is running with 'python run.py'.`);
       }
       try {
         return JSON.parse(text);
@@ -90,6 +101,9 @@ async function apiCall(endpoint, method = "GET", body = null) {
     return await res.json();
   } catch (err) {
     console.error("API error:", err);
+    if (err.name === "TypeError" && (err.message.includes("fetch") || err.message.includes("NetworkError"))) {
+      throw new Error(`Cannot connect to CALORA backend at ${API_BASE || 'http://127.0.0.1:8000'}. Ensure 'python run.py' is running.`);
+    }
     throw err;
   }
 }
