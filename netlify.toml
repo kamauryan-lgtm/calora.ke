@@ -14,7 +14,7 @@
 # Return JSON 404 fallback if API endpoint is missing (never return HTML index.html for /api)
 [[redirects]]
   from = "/api/*"
-  to = "/api/404.json"
+  to = "/static/api/404.json"
   status = 404
 
 # Seamless handling for static path assets

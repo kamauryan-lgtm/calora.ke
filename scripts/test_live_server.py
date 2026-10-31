@@ -202,11 +202,78 @@ def run():
             record("7. Nonexistent /api/* route returns 404 JSON (never HTML)", False, str(e))
 
         # ----------------------------------------------------
-        # PHASE 2: ISOLATED WRITE & DURATION TEST (Isolated DB)
+        # PHASE 2: GYM WORKSPACE & SECURITY ACCESS TESTS
         # ----------------------------------------------------
-        print("\n--- Phase 2: Isolated Sleep Logging & Duration Test ---")
+        print("\n--- Phase 2: Gym Workspace & Security Access Tests ---")
 
-        # Test 8: Sleep log across midnight (23:15 to 07:15 = 480 mins)
+        # Test 8: Valid Gym Workspace GET /api/gyms/workspace/nairobi-hub
+        status, ct, body = http_get("/api/gyms/workspace/nairobi-hub")
+        try:
+            parsed = json.loads(body)
+            passed = (
+                status == 200 and
+                "application/json" in ct and
+                not body.strip().startswith("<") and
+                parsed.get("gym", {}).get("slug") == "nairobi-hub" and
+                parsed.get("gym", {}).get("name") == "Nairobi Fitness Hub (Westlands)" and
+                isinstance(parsed.get("packages"), list) and
+                isinstance(parsed.get("coaches"), list)
+            )
+            record("8. GET /api/gyms/workspace/nairobi-hub returns 200 JSON with actual gym data", passed, f"Gym: {parsed.get('gym', {}).get('name')}, Packages: {len(parsed.get('packages', []))}")
+        except Exception as e:
+            record("8. GET /api/gyms/workspace/nairobi-hub returns 200 JSON with actual gym data", False, str(e))
+
+        # Test 9: Trailing slash /api/gyms/workspace/nairobi-hub/ and alias /api/workspace/nairobi-hub
+        status1, ct1, body1 = http_get("/api/gyms/workspace/nairobi-hub/")
+        status2, ct2, body2 = http_get("/api/workspace/nairobi-hub")
+        try:
+            passed = (status1 == 200 and "application/json" in ct1 and status2 == 200 and "application/json" in ct2)
+            record("9. Trailing slash and alias routes return 200 JSON", passed, f"Slash status: {status1}, Alias status: {status2}")
+        except Exception as e:
+            record("9. Trailing slash and alias routes return 200 JSON", False, str(e))
+
+        # Test 10: Nonexistent gym GET /api/gyms/workspace/nonexistent-gym-xyz returns 404 JSON (never HTML)
+        status, ct, body = http_get("/api/gyms/workspace/nonexistent-gym-xyz")
+        try:
+            parsed = json.loads(body)
+            passed = (status == 404 and "application/json" in ct and not body.strip().startswith("<") and "detail" in parsed)
+            record("10. Nonexistent gym returns 404 JSON (never HTML)", passed, f"Status: {status}, Detail: {parsed.get('detail')}")
+        except Exception as e:
+            record("10. Nonexistent gym returns 404 JSON (never HTML)", False, str(e))
+
+        # Test 11: Unauthorized access to protected gym dashboard (no token)
+        status, ct, body = http_get("/api/gyms/gym_nairobi_hub/dashboard")
+        try:
+            parsed = json.loads(body)
+            passed = (status == 401 and "application/json" in ct and not body.strip().startswith("<"))
+            record("11. Unauthorized access to protected gym dashboard returns 401 JSON", passed, f"Status: {status}, Detail: {parsed.get('detail')}")
+        except Exception as e:
+            record("11. Unauthorized access to protected gym dashboard returns 401 JSON", False, str(e))
+
+        # Test 12: Unauthorized access to admin gym endpoint with regular client token
+        status, ct, body = http_get("/api/admin/gyms", headers=auth_headers)
+        try:
+            parsed = json.loads(body)
+            passed = (status == 403 and "application/json" in ct and not body.strip().startswith("<"))
+            record("12. Client access to admin gyms endpoint returns 403 Forbidden JSON", passed, f"Status: {status}, Detail: {parsed.get('detail')}")
+        except Exception as e:
+            record("12. Client access to admin gyms endpoint returns 403 Forbidden JSON", False, str(e))
+
+        # Test 13: List all active gyms GET /api/gyms/all
+        status, ct, body = http_get("/api/gyms/all")
+        try:
+            parsed = json.loads(body)
+            passed = (status == 200 and "application/json" in ct and isinstance(parsed, list) and len(parsed) >= 3)
+            record("13. GET /api/gyms/all returns 200 JSON list of active gyms", passed, f"Count: {len(parsed)}")
+        except Exception as e:
+            record("13. GET /api/gyms/all returns 200 JSON list of active gyms", False, str(e))
+
+        # ----------------------------------------------------
+        # PHASE 3: ISOLATED WRITE & DURATION TEST (Isolated DB)
+        # ----------------------------------------------------
+        print("\n--- Phase 3: Isolated Sleep Logging & Duration Test ---")
+
+        # Test 14: Sleep log across midnight (23:15 to 07:15 = 480 mins)
         log_payload = {
             "date": "2099-01-01",  # Future test date isolated in test db
             "bedtime": "23:15",
@@ -219,18 +286,18 @@ def run():
         try:
             parsed = json.loads(body)
             passed = (status == 200 and parsed.get("status") == "success" and parsed.get("duration_minutes") == 480 and parsed.get("hours") == "8h 0m")
-            record("8. POST /api/sleep/log calculates duration across midnight and logs to SQLite", passed, f"Duration: {parsed.get('duration_minutes')}m ({parsed.get('hours')})")
+            record("14. POST /api/sleep/log calculates duration across midnight and logs to SQLite", passed, f"Duration: {parsed.get('duration_minutes')}m ({parsed.get('hours')})")
         except Exception as e:
-            record("8. POST /api/sleep/log calculates duration across midnight and logs to SQLite", False, str(e))
+            record("14. POST /api/sleep/log calculates duration across midnight and logs to SQLite", False, str(e))
 
-        # Test 9: Verify retrieve of newly logged sleep record in isolated DB
+        # Test 15: Verify retrieve of newly logged sleep record in isolated DB
         status, ct, body = http_get("/api/sleep/today?date_str=2099-01-01", headers=auth_headers)
         try:
             parsed = json.loads(body)
             passed = (status == 200 and parsed.get("duration_minutes") == 480 and parsed.get("quality_rating") == 5 and parsed.get("notes") == "Isolated test sleep record")
-            record("9. GET /api/sleep/today reflects newly saved record correctly", passed, f"Quality: {parsed.get('quality_rating')}, Duration: {parsed.get('duration_minutes')}m")
+            record("15. GET /api/sleep/today reflects newly saved record correctly", passed, f"Quality: {parsed.get('quality_rating')}, Duration: {parsed.get('duration_minutes')}m")
         except Exception as e:
-            record("9. GET /api/sleep/today reflects newly saved record correctly", False, str(e))
+            record("15. GET /api/sleep/today reflects newly saved record correctly", False, str(e))
 
     finally:
         # 3. Clean termination of only the server process started by this script

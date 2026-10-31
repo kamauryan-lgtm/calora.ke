@@ -46,7 +46,7 @@ def build():
         f.write("# 1. Direct API requests to Netlify Serverless Function (or external backend)\n")
         f.write("/api/*  /.netlify/functions/api/api/:splat  200\n")
         f.write("\n# 2. Return JSON 404 fallback if API endpoint is missing (never return HTML index.html for /api)\n")
-        f.write("/api/*  /api/404.json                       404\n")
+        f.write("/api/*  /static/api/404.json                 404\n")
         f.write("\n# 3. SPA client-side fallback (ONLY for app navigation)\n")
         f.write("/*      /index.html                          200\n")
 

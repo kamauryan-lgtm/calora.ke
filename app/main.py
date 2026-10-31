@@ -14,6 +14,7 @@ from fastapi import FastAPI, Depends, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
+from fastapi.exceptions import HTTPException as FastAPIHTTPException
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.database import (
@@ -80,6 +81,17 @@ async def custom_404_handler(request, exc):
     if os.path.exists(index_path):
         return FileResponse(index_path)
     return HTMLResponse("<h1>404 Not Found</h1>", status_code=404)
+
+@app.exception_handler(FastAPIHTTPException)
+async def fastapi_http_exception_handler(request, exc: FastAPIHTTPException):
+    path = request.url.path
+    if path.startswith("/api/") or path == "/api" or "/api/" in path:
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail or f"API error {exc.status_code}"})
+    if exc.status_code == 404:
+        index_path = os.path.join(STATIC_DIR, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
+    return HTMLResponse(f"<h1>{exc.status_code} {exc.detail}</h1>", status_code=exc.status_code)
 
 @app.exception_handler(StarletteHTTPException)
 async def starlette_http_exception_handler(request, exc: StarletteHTTPException):
@@ -1860,6 +1872,7 @@ def register_gym(req: GymRegisterRequest):
 
 
 @app.get("/api/gyms/all")
+@app.get("/api/gyms/all/")
 def list_all_gyms():
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -1875,6 +1888,9 @@ def list_all_gyms():
 
 
 @app.get("/api/gyms/workspace/{slug}")
+@app.get("/api/gyms/workspace/{slug}/")
+@app.get("/api/workspace/{slug}")
+@app.get("/api/workspace/{slug}/")
 def get_gym_workspace(slug: str):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -3263,7 +3279,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 def serve_spa(full_path: str):
     """Serve SPA index.html for all frontend routes."""
     # Ensure unmapped /api/* routes return 404 JSON, NOT HTML index.html
-    if full_path.startswith("api/") or full_path == "api":
+    if full_path.startswith("api/") or full_path == "api" or "/api/" in full_path:
         return JSONResponse(status_code=404, content={"detail": f"API endpoint not found: /{full_path}"})
 
     # Check if a static file is requested
