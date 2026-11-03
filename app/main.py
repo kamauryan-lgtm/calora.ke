@@ -104,6 +104,20 @@ async def starlette_http_exception_handler(request, exc: StarletteHTTPException)
             return FileResponse(index_path)
     return HTMLResponse(f"<h1>{exc.status_code} {exc.detail}</h1>", status_code=exc.status_code)
 
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request, exc: Exception):
+    path = request.url.path
+    if path.startswith("/api/") or path == "/api" or "/api/" in path:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "detail": f"Internal server error: {str(exc)}",
+                "type": exc.__class__.__name__
+            }
+        )
+    return HTMLResponse(f"<h1>500 Internal Server Error</h1><p>{str(exc)}</p>", status_code=500)
+
 # CORS setup
 app.add_middleware(
     CORSMiddleware,
@@ -116,6 +130,55 @@ app.add_middleware(
 # Static files directory
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
+
+
+# ==========================================
+# 0. DEDICATED HEALTH CHECK & SYSTEM STATUS
+# ==========================================
+
+@app.get("/api/health")
+@app.get("/api/health/")
+def health_check():
+    """
+    Dedicated health-check endpoint confirming:
+    - Backend status.
+    - Application name & version.
+    - Database connectivity (real query execution).
+    - API availability.
+    """
+    db_connected = False
+    table_count = 0
+    db_error = None
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='table'")
+        row = cursor.fetchone()
+        table_count = row[0] if row else 0
+        cursor.execute("SELECT 1")
+        test_val = cursor.fetchone()
+        conn.close()
+        if test_val and test_val[0] == 1:
+            db_connected = True
+    except Exception as e:
+        db_error = str(e)
+
+    payload = {
+        "status": "healthy" if db_connected else "degraded",
+        "app_name": "CALORA API",
+        "version": "1.0.0",
+        "database": {
+            "status": "connected" if db_connected else "error",
+            "verified": db_connected,
+            "table_count": table_count,
+            "error": db_error
+        },
+        "api_available": True,
+        "timestamp": datetime.now().isoformat()
+    }
+    status_code = status.HTTP_200_OK if db_connected else status.HTTP_503_SERVICE_UNAVAILABLE
+    return JSONResponse(status_code=status_code, content=payload)
 
 
 # ==========================================
@@ -492,26 +555,8 @@ def get_food_by_barcode(barcode: str):
     raise HTTPException(status_code=404, detail=f"Barcode {code} not found in verified database or Open Food Facts")
 
 
-@app.get("/api/foods/{food_id}")
-def get_food_detail(food_id: str):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM food_items WHERE id = ?", (food_id,))
-    row = cursor.fetchone()
-
-    if not row:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Food item not found")
-
-    food = dict(row)
-    cursor.execute("SELECT * FROM food_portions WHERE food_id = ? ORDER BY is_default DESC", (food_id,))
-    food["portions"] = [dict(p) for p in cursor.fetchall()]
-    conn.close()
-
-    return food
-
-
 @app.post("/api/foods/custom")
+@app.post("/api/foods/custom/")
 def create_custom_food(req: CreateCustomFoodRequest, user: Dict[str, Any] = Depends(get_current_user)):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -545,6 +590,26 @@ def create_custom_food(req: CreateCustomFoodRequest, user: Dict[str, Any] = Depe
     conn.close()
 
     return {"status": "success", "food_id": food_id, "message": "Custom food created successfully"}
+
+
+@app.get("/api/foods/{food_id}")
+@app.get("/api/foods/{food_id}/")
+def get_food_detail(food_id: str):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM food_items WHERE id = ?", (food_id,))
+    row = cursor.fetchone()
+
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Food item not found")
+
+    food = dict(row)
+    cursor.execute("SELECT * FROM food_portions WHERE food_id = ? ORDER BY is_default DESC", (food_id,))
+    food["portions"] = [dict(p) for p in cursor.fetchall()]
+    conn.close()
+
+    return food
 
 
 # ==========================================
@@ -3268,8 +3333,17 @@ def copy_meal_to_today(req: CopyMealToTodayRequest, user: Dict[str, Any] = Depen
 
 
 # ==========================================
-# 23. SPA STATIC FILE ROUTING
+# 23. SPA STATIC FILE ROUTING & API FALLBACK
 # ==========================================
+
+# Dedicated fallback for any unmapped API route across all HTTP methods
+@app.api_route("/api/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"])
+def api_unmapped_fallback(full_path: str):
+    """Ensure unmapped API endpoints return clean structured JSON 404, never HTML."""
+    return JSONResponse(
+        status_code=404,
+        content={"detail": f"API endpoint not found: /api/{full_path}", "status": "error"}
+    )
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -3278,9 +3352,9 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 @app.get("/{full_path:path}")
 def serve_spa(full_path: str):
     """Serve SPA index.html for all frontend routes."""
-    # Ensure unmapped /api/* routes return 404 JSON, NOT HTML index.html
-    if full_path.startswith("api/") or full_path == "api" or "/api/" in full_path:
-        return JSONResponse(status_code=404, content={"detail": f"API endpoint not found: /{full_path}"})
+    # Safety guard: unmapped /api/* routes return 404 JSON, NOT HTML index.html
+    if full_path.startswith("api/") or full_path == "api" or "/api/" in full_path or full_path.startswith("api"):
+        return JSONResponse(status_code=404, content={"detail": f"API endpoint not found: /{full_path}", "status": "error"})
 
     # Check if a static file is requested
     potential_file = os.path.join(STATIC_DIR, full_path)

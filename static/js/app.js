@@ -14,29 +14,50 @@ const AppState = {
 
 // Configurable API base URL (auto-connects to local backend when served from live-server or dev port)
 function getCaloraApiBase() {
-  if (window.CALORA_API_BASE) return window.CALORA_API_BASE;
+  if (window.CALORA_API_BASE) return window.CALORA_API_BASE.replace(/\/+$/, "");
   const stored = localStorage.getItem("calora_api_base");
-  if (stored) return stored;
+  if (stored) return stored.replace(/\/+$/, "");
 
   if (typeof window !== "undefined" && window.location) {
     const protocol = window.location.protocol;
     const port = window.location.port;
     const host = window.location.hostname;
+
     // When opened directly via file:// or without host, default to local backend
     if (protocol === "file:" || !host) {
       return "http://127.0.0.1:8000";
     }
-    // When served from local dev server (e.g. Live Server on 5500, Vite on 5173, etc.)
+    // When served from local dev server on another port (e.g. Live Server on 5500, Vite on 5173, etc.)
     if ((host === "localhost" || host === "127.0.0.1") && port && port !== "8000") {
       return `http://${host}:8000`;
+    }
+    // When served directly on port 8000 (FastAPI directly)
+    if (port === "8000") {
+      return "";
     }
   }
   return "";
 }
 const API_BASE = getCaloraApiBase();
 
+// Dedicated backend health monitor & connection verifier
+async function checkBackendConnectivity() {
+  try {
+    const res = await apiCall("/api/health", "GET", null, 4000);
+    if (res && res.status === "healthy") {
+      AppState.backendOnline = true;
+      return { online: true, data: res };
+    }
+    return { online: false, data: res };
+  } catch (err) {
+    AppState.backendOnline = false;
+    return { online: false, error: err.message };
+  }
+}
+window.checkBackendConnectivity = checkBackendConnectivity;
+
 // API Helper with automatic JWT header and robust non-JSON / HTML response protection
-async function apiCall(endpoint, method = "GET", body = null) {
+async function apiCall(endpoint, method = "GET", body = null, timeoutMs = 12000) {
   const headers = { "Content-Type": "application/json" };
   if (AppState.token) {
     headers["Authorization"] = `Bearer ${AppState.token}`;
@@ -47,18 +68,29 @@ async function apiCall(endpoint, method = "GET", body = null) {
     options.body = JSON.stringify(body);
   }
 
-  const url = endpoint.startsWith("http") ? endpoint : `${API_BASE}${endpoint}`;
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const url = endpoint.startsWith("http") ? endpoint : `${API_BASE}${cleanEndpoint}`;
+
+  // Request timeout protection
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  let timeoutId = null;
+  if (controller && timeoutMs > 0) {
+    timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    options.signal = controller.signal;
+  }
 
   try {
     const res = await fetch(url, options);
+    if (timeoutId) clearTimeout(timeoutId);
+
+    // 1. Handle authentication session expiration
     if (res.status === 401) {
-      // Clear rejected / invalid / dummy token and attempt seamless re-login
       AppState.token = null;
       localStorage.removeItem("calora_token");
       try {
         await instantDemoLogin("user", false);
         if (AppState.token && AppState.token !== "demo_token_calora") {
-          return apiCall(endpoint, method, body);
+          return apiCall(endpoint, method, body, timeoutMs);
         }
       } catch (_) {}
     }
@@ -66,18 +98,25 @@ async function apiCall(endpoint, method = "GET", body = null) {
     const contentType = (res.headers.get("content-type") || "").toLowerCase();
     const isJson = contentType.includes("application/json");
 
+    // 2. Handle HTTP Errors (!res.ok)
     if (!res.ok) {
       let errMsg = `Request failed (${res.status} ${res.statusText})`;
       if (isJson) {
         try {
           const errData = await res.json();
-          errMsg = errData.detail || errMsg;
+          errMsg = errData.detail || errData.message || errMsg;
         } catch (_) {}
+        if (res.status === 404) {
+          throw new Error(`API endpoint not found: ${cleanEndpoint} (${errMsg})`);
+        }
       } else {
         const text = await res.text();
         if (text.trim().startsWith("<")) {
-          // Static server or SPA fallback returned HTML instead of API data
-          errMsg = `CALORA backend server is unavailable at ${API_BASE || 'http://127.0.0.1:8000'}. The server returned an HTML error page (${res.status}). Verify the backend is running with 'python run.py'.`;
+          // Received HTML instead of API data
+          if (res.status === 404) {
+            throw new Error(`Backend endpoint '${cleanEndpoint}' returned 404 HTML. Verify the route exists on the backend.`);
+          }
+          throw new Error(`Server returned HTML error (${res.status} ${res.statusText}) for '${cleanEndpoint}'.`);
         } else if (text) {
           errMsg = text.slice(0, 150);
         }
@@ -85,25 +124,33 @@ async function apiCall(endpoint, method = "GET", body = null) {
       throw new Error(errMsg);
     }
 
-    // Response is OK (status 200-299), but verify it's actual JSON and not an HTML SPA fallback
+    // 3. Response is OK (status 200-299), verify valid JSON
     if (!isJson) {
       const text = await res.text();
       if (text.trim().startsWith("<")) {
-        throw new Error(`CALORA backend server is unavailable at ${API_BASE || 'http://127.0.0.1:8000'}. Received HTML SPA fallback. Verify the backend is running with 'python run.py'.`);
+        throw new Error(`Endpoint '${cleanEndpoint}' returned HTML instead of JSON. Ensure '${cleanEndpoint}' is handled by CALORA backend.`);
       }
       try {
         return JSON.parse(text);
       } catch (e) {
-        throw new Error(`Invalid JSON returned from ${endpoint}: ${text.slice(0, 80)}`);
+        throw new Error(`Invalid JSON returned from ${cleanEndpoint}: ${text.slice(0, 80)}`);
       }
     }
 
     return await res.json();
   } catch (err) {
+    if (timeoutId) clearTimeout(timeoutId);
     console.error("API error:", err);
-    if (err.name === "TypeError" && (err.message.includes("fetch") || err.message.includes("NetworkError"))) {
-      throw new Error(`Cannot connect to CALORA backend at ${API_BASE || 'http://127.0.0.1:8000'}. Ensure 'python run.py' is running.`);
+
+    if (err.name === "AbortError") {
+      throw new Error(`Request to '${cleanEndpoint}' timed out after ${Math.round(timeoutMs/1000)}s.`);
     }
+
+    if (err.name === "TypeError" && (err.message.includes("fetch") || err.message.includes("NetworkError") || err.message.includes("Failed to fetch"))) {
+      const targetHost = API_BASE || (typeof window !== "undefined" && window.location ? window.location.origin : "http://127.0.0.1:8000");
+      throw new Error(`CALORA backend server is unavailable at ${targetHost}. Verify the backend is running with 'python run.py'.`);
+    }
+
     throw err;
   }
 }
