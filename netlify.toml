@@ -2,20 +2,23 @@
   command = "python build_netlify.py"
   publish = "dist"
 
-[functions]
-  directory = "netlify/functions"
-
-# Proxy /api requests to Netlify Python serverless function
+# Dedicated health check response on static deployment
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/api/api/:splat"
+  from = "/api/health"
+  to = "/static/api/health.json"
   status = 200
 
-# Return JSON 404 fallback if API endpoint is missing (never return HTML index.html for /api)
+[[redirects]]
+  from = "/api/health/"
+  to = "/static/api/health.json"
+  status = 200
+
+# Guaranteed JSON 404 fallback (never return HTML for /api)
 [[redirects]]
   from = "/api/*"
   to = "/static/api/404.json"
   status = 404
+  force = true
 
 # Seamless handling for static path assets
 [[redirects]]

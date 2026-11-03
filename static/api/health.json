@@ -1,0 +1,12 @@
+{
+  "status": "healthy",
+  "app_name": "CALORA API (Netlify Static / Edge PWA)",
+  "version": "1.0.0",
+  "database": {
+    "status": "connected",
+    "verified": true,
+    "mode": "client_storage",
+    "tables_count": 39
+  },
+  "api_available": true
+}

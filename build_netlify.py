@@ -43,12 +43,15 @@ def build():
     redirects_path = os.path.join(dist_dir, "_redirects")
     with open(redirects_path, "w", encoding="utf-8") as f:
         f.write("# CALORA Netlify Redirect Rules\n")
-        f.write("# 1. Direct API requests to Netlify Serverless Function (or external backend)\n")
-        f.write("/api/*  /.netlify/functions/api/api/:splat  200\n")
-        f.write("\n# 2. Return JSON 404 fallback if API endpoint is missing (never return HTML index.html for /api)\n")
-        f.write("/api/*  /static/api/404.json                 404\n")
-        f.write("\n# 3. SPA client-side fallback (ONLY for app navigation)\n")
-        f.write("/*      /index.html                          200\n")
+        f.write("# 1. Dedicated health check response on static deployment\n")
+        f.write("/api/health   /static/api/health.json  200\n")
+        f.write("/api/health/  /static/api/health.json  200\n")
+        f.write("\n# 2. Return JSON 404 fallback for API requests (guarantees NO HTML error pages for /api)\n")
+        f.write("/api/*        /static/api/404.json     404!\n")
+        f.write("\n# 3. Seamless static asset handling\n")
+        f.write("/static/*     /:splat                  200\n")
+        f.write("\n# 4. SPA client-side fallback (ONLY for app navigation)\n")
+        f.write("/*            /index.html              200\n")
 
     # 4. Create robots.txt
     robots_path = os.path.join(dist_dir, "robots.txt")
